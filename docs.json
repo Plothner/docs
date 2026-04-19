@@ -42,13 +42,14 @@
   "navbar": {
     "links": [
       {
-        "name": "API Status",
-        "url": "https://api.quanterios.com/healthz"
+        "label": "API Status",
+        "href": "https://api.quanterios.com/healthz"
       }
     ],
     "primary": {
-      "name": "Get Started",
-      "url": "/quickstart"
+      "type": "button",
+      "label": "Get Started",
+      "href": "/quickstart"
     }
   }
 }
