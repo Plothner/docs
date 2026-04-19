@@ -12,91 +12,98 @@
     "light": "#1e90ff",
     "dark": "#0a3d62"
   },
-  "navigation": [
-    {
-      "group": "Getting Started",
-      "pages": [
-        "introduction",
-        "why-post-quantum",
-        "products",
-        "quickstart"
-      ]
-    },
-    {
-      "group": "Crypto Debt Firewall",
-      "pages": [
-        "firewall/overview",
-        "firewall/github",
-        "firewall/gitlab",
-        "firewall/bitbucket",
-        "firewall/findings",
-        "firewall/ai-auditor",
-        "firewall/feedback",
-        "firewall/pricing"
-      ]
-    },
-    {
-      "group": "Crypto Risk Intelligence",
-      "pages": [
-        "risk-intelligence/overview",
-        "risk-intelligence/discovery",
-        "risk-intelligence/aws",
-        "risk-intelligence/azure",
-        "risk-intelligence/gcp",
-        "risk-intelligence/kubernetes",
-        "risk-intelligence/on-prem",
-        "risk-intelligence/cbom",
-        "risk-intelligence/hndl-scoring",
-        "risk-intelligence/compliance",
-        "risk-intelligence/reports"
-      ]
-    },
-    {
-      "group": "Migration Intelligence",
-      "pages": [
-        "migration/overview",
-        "migration/paths",
-        "migration/playbooks",
-        "migration/code-patcher",
-        "migration/hybrid-mode",
-        "migration/breakage-prediction",
-        "migration/pr-delivery",
-        "migration/cost-estimation"
-      ]
-    },
-    {
-      "group": "Coming Soon",
-      "pages": [
-        "crypto-agility-api/overview",
-        "pqc-ca/overview"
-      ]
-    },
-    {
-      "tab": "API Reference",
-      "groups": [
-        {
-          "group": "Overview",
-          "pages": [
-            "api-reference/authentication",
-            "api-reference/errors",
-            "api-reference/rate-limits"
-          ]
-        },
-        {
-          "group": "Endpoints",
-          "pages": [
-            "api-reference/cbom",
-            "api-reference/hndl",
-            "api-reference/compliance",
-            "api-reference/firewall",
-            "api-reference/migration",
-            "api-reference/hybrid",
-            "api-reference/webhooks"
-          ]
-        }
-      ]
-    }
-  ],
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "introduction",
+              "why-post-quantum",
+              "products",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "Crypto Debt Firewall",
+            "pages": [
+              "firewall/overview",
+              "firewall/github",
+              "firewall/gitlab",
+              "firewall/bitbucket",
+              "firewall/findings",
+              "firewall/ai-auditor",
+              "firewall/feedback",
+              "firewall/pricing"
+            ]
+          },
+          {
+            "group": "Crypto Risk Intelligence",
+            "pages": [
+              "risk-intelligence/overview",
+              "risk-intelligence/discovery",
+              "risk-intelligence/aws",
+              "risk-intelligence/azure",
+              "risk-intelligence/gcp",
+              "risk-intelligence/kubernetes",
+              "risk-intelligence/on-prem",
+              "risk-intelligence/cbom",
+              "risk-intelligence/hndl-scoring",
+              "risk-intelligence/compliance",
+              "risk-intelligence/reports"
+            ]
+          },
+          {
+            "group": "Migration Intelligence",
+            "pages": [
+              "migration/overview",
+              "migration/paths",
+              "migration/playbooks",
+              "migration/code-patcher",
+              "migration/hybrid-mode",
+              "migration/breakage-prediction",
+              "migration/pr-delivery",
+              "migration/cost-estimation"
+            ]
+          },
+          {
+            "group": "Coming Soon",
+            "pages": [
+              "crypto-agility-api/overview",
+              "pqc-ca/overview"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+              "api-reference/authentication",
+              "api-reference/errors",
+              "api-reference/rate-limits"
+            ]
+          },
+          {
+            "group": "Endpoints",
+            "pages": [
+              "api-reference/cbom",
+              "api-reference/hndl",
+              "api-reference/compliance",
+              "api-reference/firewall",
+              "api-reference/migration",
+              "api-reference/hybrid",
+              "api-reference/webhooks"
+            ]
+          }
+        ]
+      }
+    ]
+  },
   "navbar": {
     "links": [
       {
@@ -108,6 +115,11 @@
       "type": "button",
       "label": "Get Started",
       "href": "/quickstart"
+    }
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/Plothner/Quanterios"
     }
   }
 }
