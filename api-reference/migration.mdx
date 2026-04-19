@@ -1,0 +1,769 @@
+---
+title: "Migration API"
+description: "Preview migration paths, generate rollout sequences, create and track plans, download reports, and apply automated code patches across your cryptographic asset inventory."
+---
+
+<Info>
+  All Migration endpoints require both `X-Tenant-Id` and `X-API-Key` headers. See [Authentication](/api-reference/authentication) for details.
+</Info>
+
+<Tabs>
+  <Tab title="Templates">
+
+    ## List migration templates
+
+    `GET /api/v1/migrate/templates`
+
+    Return all 29 built-in migration paths. Each template maps a source algorithm family to a post-quantum-ready target algorithm, along with metadata used by the planner and risk engine.
+
+    ### Response
+
+    An array of template objects. Each object contains:
+
+    | Field | Type | Description |
+    |-------|------|-------------|
+    | `id` | string | Unique template identifier. |
+    | `category` | string | Algorithm category, for example `asymmetric`, `symmetric`, `hash`. |
+    | `display_name` | string | Human-readable migration path name. |
+    | `source_family` | string | Source algorithm family being replaced. |
+    | `target_algorithm` | string | Recommended post-quantum target algorithm. |
+    | `asset_types` | array | Asset types this template applies to. |
+    | `platform` | string | Cloud or runtime platform, or `all`. |
+    | `monitoring_hours` | integer | Recommended hybrid-mode monitoring period in hours. |
+
+    <CodeGroup>
+    ```bash curl
+    curl --request GET \
+      --url https://api.quanterios.com/api/v1/migrate/templates \
+      --header "X-Tenant-Id: ten_abc123" \
+      --header "X-API-Key: qk_live_xxxxxxxxxxxx"
+    ```
+    ```json Response
+    [
+      {
+        "id": "tpl_rsa2048_kyber768",
+        "category": "asymmetric",
+        "display_name": "RSA-2048 to Kyber-768",
+        "source_family": "RSA",
+        "target_algorithm": "Kyber-768",
+        "asset_types": ["tls_cert", "cloud_key"],
+        "platform": "all",
+        "monitoring_hours": 168
+      },
+      {
+        "id": "tpl_ecdsa_p256_dilithium3",
+        "category": "asymmetric",
+        "display_name": "ECDSA P-256 to Dilithium3",
+        "source_family": "ECDSA",
+        "target_algorithm": "Dilithium3",
+        "asset_types": ["tls_cert", "code_signing"],
+        "platform": "all",
+        "monitoring_hours": 168
+      }
+    ]
+    ```
+    </CodeGroup>
+
+    ---
+
+    ## Preview migration
+
+    `POST /api/v1/migrate/preview`
+
+    Preview the recommended migration path for a single asset before committing to a plan. The response includes breakage probability, business impact, and risk factors computed by the Quanterios risk engine.
+
+    ### Request body
+
+    <ParamField body="asset" type="object" required>
+      Asset descriptor with `algorithm` (string), `asset_type` (string), and `location` (string).
+    </ParamField>
+
+    <ParamField body="cloud_provider" type="string">
+      Cloud provider context for platform-specific template selection. One of: `aws`, `azure`, `gcp`. Omit for multi-cloud or self-hosted assets.
+    </ParamField>
+
+    ### Response
+
+    <ResponseField name="template_id" type="string">
+      ID of the recommended migration template.
+    </ResponseField>
+
+    <ResponseField name="source_algorithm" type="string">
+      Detected source algorithm.
+    </ResponseField>
+
+    <ResponseField name="target_algorithm" type="string">
+      Recommended target algorithm.
+    </ResponseField>
+
+    <ResponseField name="pqc_ready" type="boolean">
+      Whether the target algorithm meets post-quantum readiness criteria.
+    </ResponseField>
+
+    <ResponseField name="monitoring_hours" type="integer">
+      Recommended hybrid-mode monitoring duration in hours.
+    </ResponseField>
+
+    <ResponseField name="breakage_probability" type="number">
+      Estimated probability (0.0 to 1.0) that migration causes a compatibility breakage.
+    </ResponseField>
+
+    <ResponseField name="breakage_confidence" type="number">
+      Model confidence in the breakage probability estimate (0.0 to 1.0).
+    </ResponseField>
+
+    <ResponseField name="risk_factors" type="array">
+      List of strings describing factors that contribute to breakage risk.
+    </ResponseField>
+
+    <ResponseField name="business_impact" type="string">
+      Qualitative impact rating: `critical`, `high`, `medium`, or `low`.
+    </ResponseField>
+
+    <CodeGroup>
+    ```bash curl
+    curl --request POST \
+      --url https://api.quanterios.com/api/v1/migrate/preview \
+      --header "X-Tenant-Id: ten_abc123" \
+      --header "X-API-Key: qk_live_xxxxxxxxxxxx" \
+      --header "Content-Type: application/json" \
+      --data '{
+        "asset": {
+          "algorithm": "RSA-2048",
+          "asset_type": "tls_cert",
+          "location": "us-east-1/acm/arn:aws:acm:us-east-1:123456789012:certificate/abc"
+        },
+        "cloud_provider": "aws"
+      }'
+    ```
+    ```json Response
+    {
+      "template_id": "tpl_rsa2048_kyber768",
+      "source_algorithm": "RSA-2048",
+      "target_algorithm": "Kyber-768",
+      "pqc_ready": true,
+      "monitoring_hours": 168,
+      "breakage_probability": 0.12,
+      "breakage_confidence": 0.89,
+      "risk_factors": ["Legacy TLS 1.2 clients detected in traffic logs"],
+      "business_impact": "high"
+    }
+    ```
+    </CodeGroup>
+
+    ---
+
+    ## Generate rollout sequence
+
+    `POST /api/v1/migrate/sequence`
+
+    Compute a dependency-aware rollout sequence for a set of assets. The planner groups assets into parallel batches, orders batches to minimize blast radius, and surfaces warnings for assets that share trust anchors.
+
+    ### Request body
+
+    <ParamField body="asset_ids" type="array" required>
+      Array of asset UUIDs to include in the sequence.
+    </ParamField>
+
+    ### Response
+
+    <ResponseField name="sequence" type="array">
+      Ordered list of migration steps. Each step contains `asset_id`, `step`, `reasons` (array of strings), and `parallel_group` (integer, steps sharing the same value can migrate concurrently).
+    </ResponseField>
+
+    <ResponseField name="parallel_groups" type="integer">
+      Total number of parallel migration groups.
+    </ResponseField>
+
+    <ResponseField name="warnings" type="array">
+      List of warning strings for assets with shared trust anchors or cross-dependency risks.
+    </ResponseField>
+
+    <CodeGroup>
+    ```bash curl
+    curl --request POST \
+      --url https://api.quanterios.com/api/v1/migrate/sequence \
+      --header "X-Tenant-Id: ten_abc123" \
+      --header "X-API-Key: qk_live_xxxxxxxxxxxx" \
+      --header "Content-Type: application/json" \
+      --data '{
+        "asset_ids": [
+          "ast_11111111-1111-1111-1111-111111111111",
+          "ast_22222222-2222-2222-2222-222222222222"
+        ]
+      }'
+    ```
+    ```json Response
+    {
+      "sequence": [
+        {
+          "asset_id": "ast_22222222-2222-2222-2222-222222222222",
+          "step": 1,
+          "reasons": ["Root CA must be migrated before leaf certificates."],
+          "parallel_group": 1
+        },
+        {
+          "asset_id": "ast_11111111-1111-1111-1111-111111111111",
+          "step": 2,
+          "reasons": ["Depends on root CA migration completing first."],
+          "parallel_group": 2
+        }
+      ],
+      "parallel_groups": 2,
+      "warnings": []
+    }
+    ```
+    </CodeGroup>
+
+  </Tab>
+
+  <Tab title="Plans">
+
+    ## Create migration plan
+
+    `POST /api/v1/assets/{asset_id}/migrate/plan`
+
+    Create a migration plan for a single asset. Quanterios selects the appropriate template, generates remediation code, and optionally opens a pull request in your repository.
+
+    ### Path parameters
+
+    <ParamField path="asset_id" type="string" required>
+      UUID of the asset to migrate.
+    </ParamField>
+
+    ### Request body
+
+    <ParamField body="delivery" type="string" required>
+      How the plan artifacts are delivered. One of: `zip` (download archive), `pr` (open pull request).
+    </ParamField>
+
+    <ParamField body="target_phase" type="string">
+      Desired initial migration state. Defaults to `hybrid_prep`. One of: `hybrid_prep`, `cutover`, `validated`.
+    </ParamField>
+
+    <ParamField body="repo_full" type="string">
+      Full repository path in `owner/repo` format. Required when `delivery` is `pr`.
+    </ParamField>
+
+    <ParamField body="platform" type="string">
+      Source-control platform. One of: `github`, `gitlab`, `bitbucket`. Required when `delivery` is `pr`.
+    </ParamField>
+
+    ### Response
+
+    <ResponseField name="plan_id" type="string">
+      Unique identifier for the created plan.
+    </ResponseField>
+
+    <ResponseField name="state" type="string">
+      Current plan state.
+    </ResponseField>
+
+    <ResponseField name="template_id" type="string">
+      Migration template selected by the planner.
+    </ResponseField>
+
+    <ResponseField name="target_algorithm" type="string">
+      Target algorithm for this plan.
+    </ResponseField>
+
+    <ResponseField name="pr_url" type="string">
+      URL of the opened pull request. Present only when `delivery` is `pr`.
+    </ResponseField>
+
+    <CodeGroup>
+    ```bash curl
+    curl --request POST \
+      --url "https://api.quanterios.com/api/v1/assets/ast_11111111-1111-1111-1111-111111111111/migrate/plan" \
+      --header "X-Tenant-Id: ten_abc123" \
+      --header "X-API-Key: qk_live_xxxxxxxxxxxx" \
+      --header "Content-Type: application/json" \
+      --data '{
+        "delivery": "pr",
+        "target_phase": "hybrid_prep",
+        "repo_full": "acme-corp/payments-service",
+        "platform": "github"
+      }'
+    ```
+    ```json Response
+    {
+      "plan_id": "pln_abc001",
+      "state": "hybrid_prep",
+      "template_id": "tpl_rsa2048_kyber768",
+      "target_algorithm": "Kyber-768",
+      "pr_url": "https://github.com/acme-corp/payments-service/pull/318"
+    }
+    ```
+    </CodeGroup>
+
+    ---
+
+    ## Download plan as ZIP
+
+    `GET /api/v1/assets/{asset_id}/migrate/plan`
+
+    Download the latest migration plan for an asset as a ZIP archive. The archive contains remediation scripts, IaC patches, and a README with step-by-step instructions.
+
+    ### Path parameters
+
+    <ParamField path="asset_id" type="string" required>
+      UUID of the asset whose plan you want to download.
+    </ParamField>
+
+    ### Response
+
+    Binary ZIP file with `Content-Type: application/zip`.
+
+    <CodeGroup>
+    ```bash curl
+    curl --request GET \
+      --url "https://api.quanterios.com/api/v1/assets/ast_11111111-1111-1111-1111-111111111111/migrate/plan" \
+      --header "X-Tenant-Id: ten_abc123" \
+      --header "X-API-Key: qk_live_xxxxxxxxxxxx" \
+      --output migration-plan.zip
+    ```
+    </CodeGroup>
+
+    ---
+
+    ## Get plan status
+
+    `GET /api/v1/assets/{asset_id}/migrate/status`
+
+    Retrieve the current state and full transition history for an asset's migration plan, along with the latest predicted breakage probability and business impact.
+
+    ### Path parameters
+
+    <ParamField path="asset_id" type="string" required>
+      UUID of the asset.
+    </ParamField>
+
+    ### Response
+
+    <ResponseField name="plan_id" type="string">
+      Plan identifier.
+    </ResponseField>
+
+    <ResponseField name="state" type="string">
+      Current plan state.
+    </ResponseField>
+
+    <ResponseField name="transitions" type="array">
+      Ordered list of state transitions. Each entry includes `from_state`, `to_state`, `timestamp`, and any metadata provided at transition time.
+    </ResponseField>
+
+    <ResponseField name="predicted_breakage_probability" type="number">
+      Latest breakage probability estimate from the risk engine.
+    </ResponseField>
+
+    <ResponseField name="business_impact" type="string">
+      Current business impact rating.
+    </ResponseField>
+
+    <CodeGroup>
+    ```bash curl
+    curl --request GET \
+      --url "https://api.quanterios.com/api/v1/assets/ast_11111111-1111-1111-1111-111111111111/migrate/status" \
+      --header "X-Tenant-Id: ten_abc123" \
+      --header "X-API-Key: qk_live_xxxxxxxxxxxx"
+    ```
+    ```json Response
+    {
+      "plan_id": "pln_abc001",
+      "state": "hybrid_prep",
+      "transitions": [
+        {
+          "from_state": null,
+          "to_state": "hybrid_prep",
+          "timestamp": "2026-04-18T10:00:00Z",
+          "metadata": {}
+        }
+      ],
+      "predicted_breakage_probability": 0.12,
+      "business_impact": "high"
+    }
+    ```
+    </CodeGroup>
+
+    ---
+
+    ## Advance plan state
+
+    `POST /api/v1/assets/{asset_id}/migrate/transition`
+
+    Advance a migration plan to the next state and record step telemetry. Use this endpoint from your CI/CD pipeline after each migration phase completes.
+
+    ### Path parameters
+
+    <ParamField path="asset_id" type="string" required>
+      UUID of the asset.
+    </ParamField>
+
+    ### Request body
+
+    <ParamField body="to_state" type="string" required>
+      Target state to transition to. One of: `hybrid_prep`, `hybrid_active`, `cutover`, `validated`, `rolled_back`.
+    </ParamField>
+
+    <ParamField body="metadata" type="object">
+      Optional telemetry object with `success` (boolean), `step_duration_seconds` (integer), and `error_category` (string, present on failure).
+    </ParamField>
+
+    ### Response
+
+    <ResponseField name="plan_id" type="string">
+      Plan identifier.
+    </ResponseField>
+
+    <ResponseField name="state" type="string">
+      Updated plan state.
+    </ResponseField>
+
+    <ResponseField name="cbom_status" type="string">
+      Updated CBOM asset status reflecting the new migration state.
+    </ResponseField>
+
+    <CodeGroup>
+    ```bash curl
+    curl --request POST \
+      --url "https://api.quanterios.com/api/v1/assets/ast_11111111-1111-1111-1111-111111111111/migrate/transition" \
+      --header "X-Tenant-Id: ten_abc123" \
+      --header "X-API-Key: qk_live_xxxxxxxxxxxx" \
+      --header "Content-Type: application/json" \
+      --data '{
+        "to_state": "hybrid_active",
+        "metadata": {
+          "success": true,
+          "step_duration_seconds": 142
+        }
+      }'
+    ```
+    ```json Response
+    {
+      "plan_id": "pln_abc001",
+      "state": "hybrid_active",
+      "cbom_status": "migrating"
+    }
+    ```
+    </CodeGroup>
+
+  </Tab>
+
+  <Tab title="Reports">
+
+    ## Per-asset PDF report
+
+    `GET /api/v1/assets/{asset_id}/migrate/report.pdf`
+
+    Download a PDF migration report for a single asset. The report includes the migration plan summary, risk analysis, timeline, and rolloff readiness assessment.
+
+    ### Path parameters
+
+    <ParamField path="asset_id" type="string" required>
+      UUID of the asset.
+    </ParamField>
+
+    ### Response
+
+    Binary PDF with `Content-Type: application/pdf`.
+
+    <CodeGroup>
+    ```bash curl
+    curl --request GET \
+      --url "https://api.quanterios.com/api/v1/assets/ast_11111111-1111-1111-1111-111111111111/migrate/report.pdf" \
+      --header "X-Tenant-Id: ten_abc123" \
+      --header "X-API-Key: qk_live_xxxxxxxxxxxx" \
+      --output asset-report.pdf
+    ```
+    </CodeGroup>
+
+    ---
+
+    ## Per-asset Markdown report
+
+    `GET /api/v1/assets/{asset_id}/migrate/report.md`
+
+    Download a Markdown migration report for a single asset. Suitable for embedding in wikis, GitHub comments, or CI pipeline summaries.
+
+    ### Path parameters
+
+    <ParamField path="asset_id" type="string" required>
+      UUID of the asset.
+    </ParamField>
+
+    ### Response
+
+    Markdown text with `Content-Type: text/markdown`.
+
+    <CodeGroup>
+    ```bash curl
+    curl --request GET \
+      --url "https://api.quanterios.com/api/v1/assets/ast_11111111-1111-1111-1111-111111111111/migrate/report.md" \
+      --header "X-Tenant-Id: ten_abc123" \
+      --header "X-API-Key: qk_live_xxxxxxxxxxxx" \
+      --output asset-report.md
+    ```
+    </CodeGroup>
+
+    ---
+
+    ## Portfolio PDF report
+
+    `GET /api/v1/migrate/portfolio-report.pdf`
+
+    Download a PDF report covering all assets in your tenant. Includes an executive summary, risk distribution charts, and per-asset migration status.
+
+    ### Response
+
+    Binary PDF with `Content-Type: application/pdf`. Scoped to the tenant identified by `X-Tenant-Id`.
+
+    <CodeGroup>
+    ```bash curl
+    curl --request GET \
+      --url https://api.quanterios.com/api/v1/migrate/portfolio-report.pdf \
+      --header "X-Tenant-Id: ten_abc123" \
+      --header "X-API-Key: qk_live_xxxxxxxxxxxx" \
+      --output portfolio-report.pdf
+    ```
+    </CodeGroup>
+
+    ---
+
+    ## Portfolio Markdown report
+
+    `GET /api/v1/migrate/portfolio-report.md`
+
+    Download a Markdown portfolio report scoped to your tenant. Useful for automated reporting workflows and stakeholder dashboards.
+
+    ### Response
+
+    Markdown text with `Content-Type: text/markdown`.
+
+    <CodeGroup>
+    ```bash curl
+    curl --request GET \
+      --url https://api.quanterios.com/api/v1/migrate/portfolio-report.md \
+      --header "X-Tenant-Id: ten_abc123" \
+      --header "X-API-Key: qk_live_xxxxxxxxxxxx" \
+      --output portfolio-report.md
+    ```
+    </CodeGroup>
+
+  </Tab>
+
+  <Tab title="Code Patches">
+
+    ## Generate code patch
+
+    `POST /api/v1/assets/{asset_id}/migrate/code-patch`
+
+    Submit source code and an optional manifest for LLM-assisted patch generation. Quanterios identifies deprecated cryptographic API calls, rewrites them to post-quantum-safe equivalents, generates tests, and optionally opens a pull request.
+
+    ### Path parameters
+
+    <ParamField path="asset_id" type="string" required>
+      UUID of the asset the source code belongs to.
+    </ParamField>
+
+    ### Request body
+
+    <ParamField body="source_code" type="string" required>
+      Raw source code string to patch. Maximum 500 KB.
+    </ParamField>
+
+    <ParamField body="manifest_content" type="string">
+      Package manifest content (for example, `requirements.txt` or `pom.xml`). Used to identify library-level migration opportunities.
+    </ParamField>
+
+    <ParamField body="manifest_type" type="string">
+      Manifest format. One of: `requirements_txt`, `pom_xml`, `package_json`, `go_mod`, `cargo_toml`.
+    </ParamField>
+
+    <ParamField body="delivery" type="string" required>
+      Delivery method. One of: `zip`, `pr`.
+    </ParamField>
+
+    <ParamField body="repo_full" type="string">
+      Full `owner/repo` path. Required when `delivery` is `pr`.
+    </ParamField>
+
+    ### Response
+
+    <ResponseField name="patch_id" type="string">
+      Identifier for the generated patch.
+    </ResponseField>
+
+    <ResponseField name="status" type="string">
+      Patch generation status: `completed`, `partial`, or `failed`.
+    </ResponseField>
+
+    <ResponseField name="confidence" type="number">
+      Model confidence in the patch quality (0.0 to 1.0).
+    </ResponseField>
+
+    <ResponseField name="pr_url" type="string">
+      Pull-request URL. Present only when `delivery` is `pr`.
+    </ResponseField>
+
+    <ResponseField name="files" type="array">
+      List of file paths modified by the patch.
+    </ResponseField>
+
+    <CodeGroup>
+    ```bash curl
+    curl --request POST \
+      --url "https://api.quanterios.com/api/v1/assets/ast_11111111-1111-1111-1111-111111111111/migrate/code-patch" \
+      --header "X-Tenant-Id: ten_abc123" \
+      --header "X-API-Key: qk_live_xxxxxxxxxxxx" \
+      --header "Content-Type: application/json" \
+      --data '{
+        "source_code": "from Crypto.PublicKey import RSA\nkey = RSA.generate(2048)",
+        "manifest_content": "pycryptodome==3.18.0\n",
+        "manifest_type": "requirements_txt",
+        "delivery": "pr",
+        "repo_full": "acme-corp/payments-service"
+      }'
+    ```
+    ```json Response
+    {
+      "patch_id": "pch_xyz001",
+      "status": "completed",
+      "confidence": 0.91,
+      "pr_url": "https://github.com/acme-corp/payments-service/pull/319",
+      "files": ["src/auth/jwt.py", "tests/test_jwt.py"]
+    }
+    ```
+    </CodeGroup>
+
+    ---
+
+    ## Get code patch
+
+    `GET /api/v1/assets/{asset_id}/migrate/code-patch/{patch_id}`
+
+    Retrieve the full artifacts for a generated code patch, including the compatibility shim module, patched source file, test file, and CI hook snippet.
+
+    ### Path parameters
+
+    <ParamField path="asset_id" type="string" required>
+      UUID of the asset.
+    </ParamField>
+
+    <ParamField path="patch_id" type="string" required>
+      Patch identifier returned by the generate endpoint.
+    </ParamField>
+
+    ### Response
+
+    <ResponseField name="compat_module" type="string">
+      Source code of the compatibility shim module.
+    </ResponseField>
+
+    <ResponseField name="patched_file" type="string">
+      Full content of the patched source file.
+    </ResponseField>
+
+    <ResponseField name="test_file" type="string">
+      Generated test file validating the patch.
+    </ResponseField>
+
+    <ResponseField name="ci_hook" type="string">
+      CI configuration snippet to add the patch validation step to your pipeline.
+    </ResponseField>
+
+    <ResponseField name="confidence" type="number">
+      Model confidence in the patch quality.
+    </ResponseField>
+
+    <ResponseField name="reasoning" type="string">
+      Model explanation of the changes made and why.
+    </ResponseField>
+
+    <CodeGroup>
+    ```bash curl
+    curl --request GET \
+      --url "https://api.quanterios.com/api/v1/assets/ast_11111111-1111-1111-1111-111111111111/migrate/code-patch/pch_xyz001" \
+      --header "X-Tenant-Id: ten_abc123" \
+      --header "X-API-Key: qk_live_xxxxxxxxxxxx"
+    ```
+    ```json Response
+    {
+      "compat_module": "# quanterios_pqc_compat.py\nfrom kyber import Kyber768\n...",
+      "patched_file": "from quanterios_pqc_compat import generate_keypair\nkey = generate_keypair()",
+      "test_file": "def test_keypair_generation():\n    key = generate_keypair()\n    assert key is not None",
+      "ci_hook": "- name: Verify PQC patch\n  run: pytest tests/test_jwt.py",
+      "confidence": 0.91,
+      "reasoning": "Replaced RSA.generate(2048) with Kyber-768 key generation via compatibility shim."
+    }
+    ```
+    </CodeGroup>
+
+    ---
+
+    ## Batch code patches
+
+    `POST /api/v1/migrate/code-patch-batch`
+
+    Submit multiple source files for patch generation in a single request. Quanterios processes each file independently and returns an aggregated result set.
+
+    ### Request body
+
+    <ParamField body="patches" type="array" required>
+      Array of patch request objects. Each object uses the same schema as the single `code-patch` endpoint body, with an additional `asset_id` field to associate each file with its asset.
+    </ParamField>
+
+    ### Response
+
+    <ResponseField name="total" type="integer">
+      Total number of patch requests processed.
+    </ResponseField>
+
+    <ResponseField name="patches" type="array">
+      Array of patch result objects. Each element uses the same schema as the single `code-patch` response, with an additional `asset_id` field.
+    </ResponseField>
+
+    <CodeGroup>
+    ```bash curl
+    curl --request POST \
+      --url https://api.quanterios.com/api/v1/migrate/code-patch-batch \
+      --header "X-Tenant-Id: ten_abc123" \
+      --header "X-API-Key: qk_live_xxxxxxxxxxxx" \
+      --header "Content-Type: application/json" \
+      --data '{
+        "patches": [
+          {
+            "asset_id": "ast_11111111-1111-1111-1111-111111111111",
+            "source_code": "from Crypto.PublicKey import RSA\nkey = RSA.generate(2048)",
+            "delivery": "zip"
+          },
+          {
+            "asset_id": "ast_22222222-2222-2222-2222-222222222222",
+            "source_code": "import hashlib\nh = hashlib.md5(data)",
+            "delivery": "zip"
+          }
+        ]
+      }'
+    ```
+    ```json Response
+    {
+      "total": 2,
+      "patches": [
+        {
+          "asset_id": "ast_11111111-1111-1111-1111-111111111111",
+          "patch_id": "pch_xyz001",
+          "status": "completed",
+          "confidence": 0.91
+        },
+        {
+          "asset_id": "ast_22222222-2222-2222-2222-222222222222",
+          "patch_id": "pch_xyz002",
+          "status": "completed",
+          "confidence": 0.87
+        }
+      ]
+    }
+    ```
+    </CodeGroup>
+
+  </Tab>
+</Tabs>
