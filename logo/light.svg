@@ -1,6 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128" role="img" aria-label="Quanterios alt mark B1 v2 — lattice cell with quantum + AI cues">
-  <title>Quanterios — lattice cell mark (v2)</title>
-  <desc>Primary lattice cell with a rotated ghost lattice behind (superposition / quasicrystal → quantum cue) and a concentric dual-ring center node (reasoning core → AI cue). Cryptographic lattice remains the dominant read.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 40" width="300" height="40">
+  <g transform="translate(2,2) scale(0.28)">
+    
+  
+  
   <defs>
     <linearGradient id="b1v2g" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%" stop-color="#4F46E5"/>
@@ -56,4 +58,6 @@
     <circle cx="64" cy="64" r="6.2" fill="url(#b1v2core)"/>
     <circle cx="64" cy="64" r="2.2" fill="#F8FAFC"/>
   </g>
+  </g>
+  <text x="48" y="28" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="22" font-weight="700" fill="#0a3d62">Quanterios</text>
 </svg>
