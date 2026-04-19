@@ -1,0 +1,514 @@
+---
+title: "Compliance API"
+description: "Evaluate cryptographic assets against 13 regulatory frameworks."
+---
+
+<Info>
+  All Compliance endpoints require both `X-Tenant-Id` and `X-API-Key` headers. See [Authentication](/api-reference/authentication) for details.
+</Info>
+
+Quanterios ships with a built-in compliance database covering 13 cryptographic regulatory frameworks. Each framework is modeled as a set of rules that define algorithm requirements, key-size minimums, and deprecation deadlines. The Compliance API lets you list frameworks, evaluate individual assets, surface portfolio-wide gaps, and query upcoming remediation deadlines.
+
+<Info>
+  The 13 supported frameworks are: **CNSA 2.0**, **NIST SP 800-131A**, **FIPS 203**, **FIPS 204**, **FIPS 205**, **FIPS 140-3**, **BSI TR-02102**, **ANSSI RGS B1**, **NCSC PQC**, **NIS2**, **GDPR**, **PCI DSS 4.0**, and **HIPAA**. Framework YAML definitions are updated with each Quanterios release.
+</Info>
+
+---
+
+## List frameworks
+
+`GET /api/v1/compliance/standards`
+
+Return the full list of available regulatory frameworks with summary metadata.
+
+### Response
+
+Returns an array of framework summary objects.
+
+<ResponseField name="id" type="string">
+  Stable machine-readable identifier used in all other compliance endpoints. Example: `cnsa_2_0`.
+</ResponseField>
+
+<ResponseField name="name" type="string">
+  Human-readable framework name. Example: `CNSA 2.0`.
+</ResponseField>
+
+<ResponseField name="category" type="string">
+  Grouping category. One of: `national_standard`, `regulatory`, `sectoral`.
+</ResponseField>
+
+<ResponseField name="description" type="string">
+  Short description of the framework's scope and applicability.
+</ResponseField>
+
+<ResponseField name="rules_count" type="integer">
+  Number of cryptographic rules defined in this framework.
+</ResponseField>
+
+<CodeGroup>
+
+```bash cURL
+curl -X GET "https://api.quanterios.com/api/v1/compliance/standards" \
+  -H "X-Tenant-Id: 3f8a1c2d-0000-4b5e-9f7a-abc123def456" \
+  -H "X-API-Key: qk_live_xxxxxxxxxxxxxxxxxxxxxx"
+```
+
+```json Response
+[
+  {
+    "id": "cnsa_2_0",
+    "name": "CNSA 2.0",
+    "category": "national_standard",
+    "description": "NSA Commercial National Security Algorithm Suite 2.0. Mandates post-quantum algorithms for national security systems by 2030.",
+    "rules_count": 14
+  },
+  {
+    "id": "pci_dss_4",
+    "name": "PCI DSS 4.0",
+    "category": "sectoral",
+    "description": "Payment Card Industry Data Security Standard v4.0. Requires strong cryptography for cardholder data environments.",
+    "rules_count": 9
+  }
+]
+```
+
+</CodeGroup>
+
+---
+
+## Get framework details
+
+`GET /api/v1/compliance/standards/{framework_id}`
+
+Retrieve the full definition of a single framework, including all individual rules.
+
+### Path parameters
+
+<ParamField path="framework_id" type="string" required>
+  Stable framework identifier. Obtain valid IDs from `GET /api/v1/compliance/standards`.
+</ParamField>
+
+### Response
+
+<ResponseField name="id" type="string">
+  Framework identifier.
+</ResponseField>
+
+<ResponseField name="name" type="string">
+  Human-readable name.
+</ResponseField>
+
+<ResponseField name="category" type="string">
+  Grouping category.
+</ResponseField>
+
+<ResponseField name="description" type="string">
+  Full description of the framework's scope.
+</ResponseField>
+
+<ResponseField name="rules" type="array">
+  Array of rule objects for this framework.
+
+  <Expandable title="Rule object fields">
+    <ResponseField name="id" type="string">
+      Stable rule identifier within this framework.
+    </ResponseField>
+    <ResponseField name="description" type="string">
+      Plain-language description of what the rule requires.
+    </ResponseField>
+    <ResponseField name="asset_types" type="array">
+      Asset types to which this rule applies.
+    </ResponseField>
+    <ResponseField name="prohibited_algorithms" type="array">
+      Algorithms that are explicitly prohibited.
+    </ResponseField>
+    <ResponseField name="min_key_size" type="integer">
+      Minimum acceptable key size in bits, if applicable.
+    </ResponseField>
+    <ResponseField name="deadline" type="string">
+      ISO 8601 date by which compliance is required. May be `null` for rules that are already in effect.
+    </ResponseField>
+    <ResponseField name="severity" type="string">
+      Non-compliance severity. One of: `critical`, `high`, `medium`, `low`.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<CodeGroup>
+
+```bash cURL
+curl -X GET "https://api.quanterios.com/api/v1/compliance/standards/cnsa_2_0" \
+  -H "X-Tenant-Id: 3f8a1c2d-0000-4b5e-9f7a-abc123def456" \
+  -H "X-API-Key: qk_live_xxxxxxxxxxxxxxxxxxxxxx"
+```
+
+```json Response
+{
+  "id": "cnsa_2_0",
+  "name": "CNSA 2.0",
+  "category": "national_standard",
+  "description": "NSA Commercial National Security Algorithm Suite 2.0. Mandates post-quantum algorithms for national security systems by 2030.",
+  "rules": [
+    {
+      "id": "cnsa_2_0_rsa_prohibited",
+      "description": "RSA must not be used for key establishment in national security systems after 2030.",
+      "asset_types": ["tls_cert", "cloud_key"],
+      "prohibited_algorithms": ["RSA-1024", "RSA-2048", "RSA-3072", "RSA-4096"],
+      "min_key_size": null,
+      "deadline": "2030-01-01",
+      "severity": "critical"
+    }
+  ]
+}
+```
+
+</CodeGroup>
+
+---
+
+## Evaluate asset
+
+`GET /api/v1/assets/{asset_id}/compliance`
+
+Evaluate a single CBOM asset against all applicable frameworks. Applicability is determined by the asset's `asset_type` and `regulatory_tags`.
+
+### Path parameters
+
+<ParamField path="asset_id" type="string" required>
+  UUID of the CBOM asset to evaluate.
+</ParamField>
+
+### Response
+
+Returns an array of per-framework evaluation results.
+
+<ResponseField name="framework_id" type="string">
+  The framework that was evaluated.
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Compliance status. One of:
+
+  - `compliant`: The asset satisfies all rules in this framework today.
+  - `non_compliant`: The asset violates one or more rules that are currently in effect.
+  - `will_be_non_compliant`: The asset is compliant today but violates a rule with a future deadline.
+</ResponseField>
+
+<ResponseField name="violations" type="array">
+  List of rule violations. Empty if status is `compliant`.
+
+  <Expandable title="Violation object fields">
+    <ResponseField name="rule" type="string">
+      Rule identifier that was violated.
+    </ResponseField>
+    <ResponseField name="reason" type="string">
+      Plain-language explanation of why the asset fails this rule.
+    </ResponseField>
+    <ResponseField name="deadline" type="string">
+      Date by which the violation must be resolved. ISO 8601 date string, or `null` if already past deadline.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<CodeGroup>
+
+```bash cURL
+curl -X GET "https://api.quanterios.com/api/v1/assets/9b2e4f7a-1234-4abc-8def-000011112222/compliance" \
+  -H "X-Tenant-Id: 3f8a1c2d-0000-4b5e-9f7a-abc123def456" \
+  -H "X-API-Key: qk_live_xxxxxxxxxxxxxxxxxxxxxx"
+```
+
+```json Response
+[
+  {
+    "framework_id": "cnsa_2_0",
+    "status": "will_be_non_compliant",
+    "violations": [
+      {
+        "rule": "cnsa_2_0_rsa_prohibited",
+        "reason": "RSA-2048 will be prohibited for key establishment after 2030-01-01.",
+        "deadline": "2030-01-01"
+      }
+    ]
+  },
+  {
+    "framework_id": "pci_dss_4",
+    "status": "compliant",
+    "violations": []
+  }
+]
+```
+
+</CodeGroup>
+
+---
+
+## List compliance gaps
+
+`GET /api/v1/compliance/gaps`
+
+Return a paginated list of all compliance violations across the tenant's CBOM. Use `framework_id` to narrow results to a specific framework.
+
+### Query parameters
+
+<ParamField query="framework_id" type="string">
+  Filter by framework. When omitted, gaps from all frameworks are returned.
+</ParamField>
+
+<ParamField query="limit" type="integer" default="100">
+  Maximum number of gap records to return. Range: 1-1000.
+</ParamField>
+
+<ParamField query="offset" type="integer" default="0">
+  Number of records to skip for pagination.
+</ParamField>
+
+### Response
+
+<ResponseField name="total" type="integer">
+  Total number of gaps matching the query (before pagination).
+</ResponseField>
+
+<ResponseField name="limit" type="integer">
+  Page size used for this response.
+</ResponseField>
+
+<ResponseField name="offset" type="integer">
+  Offset used for this response.
+</ResponseField>
+
+<ResponseField name="items" type="array">
+  Array of gap records.
+
+  <Expandable title="Gap record fields">
+    <ResponseField name="asset_id" type="string">
+      UUID of the non-compliant asset.
+    </ResponseField>
+    <ResponseField name="asset_location" type="string">
+      Human-readable location of the asset.
+    </ResponseField>
+    <ResponseField name="framework_id" type="string">
+      Framework in which the gap was detected.
+    </ResponseField>
+    <ResponseField name="rule" type="string">
+      Rule identifier that is violated.
+    </ResponseField>
+    <ResponseField name="reason" type="string">
+      Plain-language explanation.
+    </ResponseField>
+    <ResponseField name="deadline" type="string">
+      Remediation deadline, or `null` if already non-compliant.
+    </ResponseField>
+    <ResponseField name="status" type="string">
+      One of: `non_compliant`, `will_be_non_compliant`.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<CodeGroup>
+
+```bash cURL
+curl -X GET "https://api.quanterios.com/api/v1/compliance/gaps?framework_id=cnsa_2_0&limit=25&offset=0" \
+  -H "X-Tenant-Id: 3f8a1c2d-0000-4b5e-9f7a-abc123def456" \
+  -H "X-API-Key: qk_live_xxxxxxxxxxxxxxxxxxxxxx"
+```
+
+```json Response
+{
+  "total": 63,
+  "limit": 25,
+  "offset": 0,
+  "items": [
+    {
+      "asset_id": "9b2e4f7a-1234-4abc-8def-000011112222",
+      "asset_location": "us-east-1/acm/cert-001",
+      "framework_id": "cnsa_2_0",
+      "rule": "cnsa_2_0_rsa_prohibited",
+      "reason": "RSA-2048 will be prohibited after 2030-01-01.",
+      "deadline": "2030-01-01",
+      "status": "will_be_non_compliant"
+    }
+  ]
+}
+```
+
+</CodeGroup>
+
+---
+
+## Deadline calendar
+
+`GET /api/v1/compliance/calendar`
+
+Return a chronologically ordered list of upcoming compliance deadlines across the tenant's CBOM. Each entry groups affected assets by framework rule and deadline date, making it easy to build a remediation roadmap.
+
+### Response
+
+Returns an array of deadline entries, sorted by `deadline` ascending.
+
+<ResponseField name="deadline" type="string">
+  ISO 8601 date of the compliance deadline.
+</ResponseField>
+
+<ResponseField name="framework" type="string">
+  ID of the framework that imposes the deadline.
+</ResponseField>
+
+<ResponseField name="rule" type="string">
+  Rule identifier within the framework.
+</ResponseField>
+
+<ResponseField name="affected_assets_count" type="integer">
+  Number of tenant assets that will be non-compliant if not remediated by this deadline.
+</ResponseField>
+
+<ResponseField name="urgency" type="string">
+  Time-based urgency classification.
+
+  | Value | Meaning |
+  |---|---|
+  | `critical` | Deadline within 90 days |
+  | `warning` | Deadline within 180 days |
+  | `info` | Deadline more than 180 days away |
+</ResponseField>
+
+<CodeGroup>
+
+```bash cURL
+curl -X GET "https://api.quanterios.com/api/v1/compliance/calendar" \
+  -H "X-Tenant-Id: 3f8a1c2d-0000-4b5e-9f7a-abc123def456" \
+  -H "X-API-Key: qk_live_xxxxxxxxxxxxxxxxxxxxxx"
+```
+
+```json Response
+[
+  {
+    "deadline": "2026-06-30",
+    "framework": "nist_sp_800_131a",
+    "rule": "nist_800_131a_rsa_2048_deprecation",
+    "affected_assets_count": 14,
+    "urgency": "critical"
+  },
+  {
+    "deadline": "2026-09-01",
+    "framework": "bsi_tr_02102",
+    "rule": "bsi_ecdsa_p256_min",
+    "affected_assets_count": 7,
+    "urgency": "warning"
+  },
+  {
+    "deadline": "2030-01-01",
+    "framework": "cnsa_2_0",
+    "rule": "cnsa_2_0_rsa_prohibited",
+    "affected_assets_count": 63,
+    "urgency": "info"
+  }
+]
+```
+
+</CodeGroup>
+
+---
+
+## Ephemeral compliance check
+
+`POST /api/v1/compliance/check`
+
+Evaluate a hypothetical asset specification against all applicable frameworks without creating or modifying any CBOM records. Useful for validating algorithm choices during design or CI pre-merge checks.
+
+<Note>
+  This endpoint does not persist any data. Results are computed on demand and returned immediately. To evaluate an existing CBOM asset, use `GET /api/v1/assets/{asset_id}/compliance`.
+</Note>
+
+### Request body
+
+<ParamField body="algorithm" type="string" required>
+  The algorithm to evaluate. Example: `RSA-2048`, `ECDSA-P384`, `Kyber-768`.
+</ParamField>
+
+<ParamField body="key_size" type="integer">
+  Key length in bits. Required for algorithm families where key size is variable (e.g., RSA).
+</ParamField>
+
+<ParamField body="asset_type" type="string" required>
+  Asset type context for rule applicability. One of: `tls_cert`, `cloud_key`, `ssh_key`, `code_crypto_call`.
+</ParamField>
+
+### Response
+
+Returns an array of per-framework evaluation results. Each item has the same shape as the response from `GET /api/v1/assets/{asset_id}/compliance`.
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST "https://api.quanterios.com/api/v1/compliance/check" \
+  -H "X-Tenant-Id: 3f8a1c2d-0000-4b5e-9f7a-abc123def456" \
+  -H "X-API-Key: qk_live_xxxxxxxxxxxxxxxxxxxxxx" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "algorithm": "RSA-2048",
+    "key_size": 2048,
+    "asset_type": "tls_cert"
+  }'
+```
+
+```json Response
+[
+  {
+    "framework_id": "cnsa_2_0",
+    "status": "will_be_non_compliant",
+    "violations": [
+      {
+        "rule": "cnsa_2_0_rsa_prohibited",
+        "reason": "RSA-2048 will be prohibited for key establishment after 2030-01-01.",
+        "deadline": "2030-01-01"
+      }
+    ]
+  },
+  {
+    "framework_id": "fips_140_3",
+    "status": "compliant",
+    "violations": []
+  },
+  {
+    "framework_id": "nist_sp_800_131a",
+    "status": "will_be_non_compliant",
+    "violations": [
+      {
+        "rule": "nist_800_131a_rsa_2048_deprecation",
+        "reason": "RSA-2048 signatures are deprecated as of 2026-12-31 under SP 800-131A Rev 2.",
+        "deadline": "2026-12-31"
+      }
+    ]
+  }
+]
+```
+
+</CodeGroup>
+
+<AccordionGroup>
+  <Accordion title="Framework categories">
+    | Framework | Category | Primary scope |
+    |---|---|---|
+    | CNSA 2.0 | National standard | US national security systems |
+    | NIST SP 800-131A | National standard | Federal information systems |
+    | FIPS 203 | National standard | ML-KEM (Kyber) key encapsulation |
+    | FIPS 204 | National standard | ML-DSA (Dilithium) signatures |
+    | FIPS 205 | National standard | SLH-DSA (SPHINCS+) signatures |
+    | FIPS 140-3 | National standard | Cryptographic module validation |
+    | BSI TR-02102 | National standard | German federal systems |
+    | ANSSI RGS B1 | National standard | French government systems |
+    | NCSC PQC | National standard | UK government guidance |
+    | NIS2 | Regulatory | EU critical infrastructure |
+    | GDPR | Regulatory | EU personal data protection |
+    | PCI DSS 4.0 | Sectoral | Payment card data environments |
+    | HIPAA | Sectoral | US healthcare data |
+  </Accordion>
+  <Accordion title="Status definitions">
+    | Status | Meaning |
+    |---|---|
+    | `compliant` | Asset satisfies all rules in this framework as of today. |
+    | `non_compliant` | Asset violates one or more rules currently in effect. Immediate remediation required. |
+    | `will_be_non_compliant` | Asset passes all current rules but violates a rule with a future effective date. Plan remediation before the deadline. |
+  </Accordion>
+</AccordionGroup>

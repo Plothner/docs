@@ -1,0 +1,340 @@
+---
+title: "HNDL Risk Scoring API"
+description: "Retrieve AI-powered risk scores, briefings, and aggregate statistics."
+---
+
+<Info>
+  All HNDL endpoints require both `X-Tenant-Id` and `X-API-Key` headers. See [Authentication](/api-reference/authentication) for details.
+</Info>
+
+The HNDL (Harvest Now, Decrypt Later) score quantifies the risk that an adversary could record today's encrypted traffic and decrypt it once a sufficiently powerful quantum computer becomes available. Scores range from 0 (no risk) to 100 (maximum risk) and are decomposed into four equally-weighted sub-dimensions.
+
+## Score dimensions
+
+| Dimension | Max points | What it measures |
+|---|---|---|
+| `data_sensitivity` | 25 | Value and longevity of the protected data |
+| `quantum_timeline` | 25 | Proximity of cryptographically-relevant quantum computers |
+| `exposure_surface` | 25 | Network reachability and attack surface |
+| `regulatory` | 25 | Compliance pressure from applicable frameworks |
+
+---
+
+## Get HNDL score
+
+`GET /api/v1/assets/{asset_id}/hndl`
+
+Compute and return the current HNDL risk score for an asset. If a cached score exists and the asset has not changed since it was computed, the cached value is returned. Otherwise, the scoring engine runs and persists the new result.
+
+### Path parameters
+
+<ParamField path="asset_id" type="string" required>
+  UUID of the CBOM asset to score.
+</ParamField>
+
+### Response
+
+<ResponseField name="asset_id" type="string">
+  UUID of the scored asset.
+</ResponseField>
+
+<ResponseField name="overall" type="integer">
+  Composite risk score from 0 to 100.
+</ResponseField>
+
+<ResponseField name="severity" type="string">
+  Derived severity label based on the overall score.
+
+  | Range | Severity |
+  |---|---|
+  | 80-100 | `critical` |
+  | 60-79 | `high` |
+  | 40-59 | `medium` |
+  | 20-39 | `low` |
+  | 0-19 | `informational` |
+</ResponseField>
+
+<ResponseField name="data_sensitivity" type="object">
+  Data sensitivity dimension.
+
+  <Expandable title="Fields">
+    <ResponseField name="score" type="integer">
+      Sub-score from 0 to 25.
+    </ResponseField>
+    <ResponseField name="reason" type="string">
+      Human-readable explanation of this sub-score.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="quantum_timeline" type="object">
+  Quantum threat timeline dimension.
+
+  <Expandable title="Fields">
+    <ResponseField name="score" type="integer">
+      Sub-score from 0 to 25.
+    </ResponseField>
+    <ResponseField name="reason" type="string">
+      Human-readable explanation of this sub-score.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="exposure_surface" type="object">
+  Network exposure dimension.
+
+  <Expandable title="Fields">
+    <ResponseField name="score" type="integer">
+      Sub-score from 0 to 25.
+    </ResponseField>
+    <ResponseField name="reason" type="string">
+      Human-readable explanation of this sub-score.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="regulatory" type="object">
+  Regulatory pressure dimension.
+
+  <Expandable title="Fields">
+    <ResponseField name="score" type="integer">
+      Sub-score from 0 to 25.
+    </ResponseField>
+    <ResponseField name="reason" type="string">
+      Human-readable explanation of this sub-score.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="primary_driver" type="string">
+  The sub-dimension with the highest proportional contribution. One of: `data_sensitivity`, `quantum_timeline`, `exposure_surface`, `regulatory`.
+</ResponseField>
+
+<ResponseField name="briefing" type="string">
+  AI-generated plain-language risk briefing summarizing the score and recommending remediation steps.
+</ResponseField>
+
+<ResponseField name="signals" type="array">
+  List of structured signals that informed the score. Each signal contains `type`, `value`, and `weight`.
+</ResponseField>
+
+<ResponseField name="scored_at" type="string">
+  ISO 8601 timestamp when this score was computed.
+</ResponseField>
+
+<CodeGroup>
+
+```bash cURL
+curl -X GET "https://api.quanterios.com/api/v1/assets/9b2e4f7a-1234-4abc-8def-000011112222/hndl" \
+  -H "X-Tenant-Id: 3f8a1c2d-0000-4b5e-9f7a-abc123def456" \
+  -H "X-API-Key: qk_live_xxxxxxxxxxxxxxxxxxxxxx"
+```
+
+```json Response
+{
+  "asset_id": "9b2e4f7a-1234-4abc-8def-000011112222",
+  "overall": 82,
+  "severity": "critical",
+  "data_sensitivity": {
+    "score": 22,
+    "reason": "Asset protects PCI and HIPAA-scoped data with multi-year sensitivity horizon."
+  },
+  "quantum_timeline": {
+    "score": 20,
+    "reason": "RSA-2048 is expected to be broken within the NIST 2030 planning window."
+  },
+  "exposure_surface": {
+    "score": 23,
+    "reason": "Certificate is active on a public-facing TLS termination point with no forward-secrecy enforcement."
+  },
+  "regulatory": {
+    "score": 17,
+    "reason": "PCI DSS 4.0 and HIPAA require cryptographic agility planning by 2026."
+  },
+  "primary_driver": "exposure_surface",
+  "briefing": "This RSA-2048 certificate presents critical HNDL risk. Its public exposure combined with high data sensitivity means encrypted sessions are viable harvest targets today. Prioritize migration to a post-quantum or hybrid key exchange scheme.",
+  "signals": [
+    { "type": "algorithm_risk", "value": "RSA-2048", "weight": 0.85 },
+    { "type": "exposure", "value": "public", "weight": 1.0 }
+  ],
+  "scored_at": "2026-04-18T10:30:00Z"
+}
+```
+
+</CodeGroup>
+
+---
+
+## Score history
+
+`GET /api/v1/assets/{asset_id}/hndl/history`
+
+Return the full HNDL scoring history for an asset, ordered from most recent to oldest.
+
+### Path parameters
+
+<ParamField path="asset_id" type="string" required>
+  UUID of the asset whose score history to retrieve.
+</ParamField>
+
+### Query parameters
+
+<ParamField query="limit" type="integer" default="100">
+  Maximum number of historical score records to return. Range: 1-1000.
+</ParamField>
+
+### Response
+
+Returns an array of score objects. Each item has the same shape as the response from `GET /api/v1/assets/{asset_id}/hndl`, with a `scored_at` timestamp on each entry.
+
+<CodeGroup>
+
+```bash cURL
+curl -X GET "https://api.quanterios.com/api/v1/assets/9b2e4f7a-1234-4abc-8def-000011112222/hndl/history?limit=5" \
+  -H "X-Tenant-Id: 3f8a1c2d-0000-4b5e-9f7a-abc123def456" \
+  -H "X-API-Key: qk_live_xxxxxxxxxxxxxxxxxxxxxx"
+```
+
+```json Response
+[
+  {
+    "asset_id": "9b2e4f7a-1234-4abc-8def-000011112222",
+    "overall": 82,
+    "severity": "critical",
+    "primary_driver": "exposure_surface",
+    "scored_at": "2026-04-18T10:30:00Z"
+  },
+  {
+    "asset_id": "9b2e4f7a-1234-4abc-8def-000011112222",
+    "overall": 78,
+    "severity": "high",
+    "primary_driver": "exposure_surface",
+    "scored_at": "2026-04-10T08:00:00Z"
+  }
+]
+```
+
+</CodeGroup>
+
+---
+
+## AI briefing (Markdown)
+
+`GET /api/v1/assets/{asset_id}/hndl/briefing.md`
+
+Return the AI-generated risk briefing for the asset's current HNDL score as a Markdown document. Suitable for embedding in issue trackers, wikis, or notification messages.
+
+### Path parameters
+
+<ParamField path="asset_id" type="string" required>
+  UUID of the asset whose briefing to retrieve.
+</ParamField>
+
+### Response
+
+Returns `200 OK` with `Content-Type: text/markdown`. The body is a Markdown document containing the risk narrative, sub-dimension breakdown, and recommended remediation steps.
+
+```bash cURL
+curl -X GET "https://api.quanterios.com/api/v1/assets/9b2e4f7a-1234-4abc-8def-000011112222/hndl/briefing.md" \
+  -H "X-Tenant-Id: 3f8a1c2d-0000-4b5e-9f7a-abc123def456" \
+  -H "X-API-Key: qk_live_xxxxxxxxxxxxxxxxxxxxxx"
+```
+
+---
+
+## AI briefing (PDF)
+
+`GET /api/v1/assets/{asset_id}/hndl/briefing.pdf`
+
+Return the AI-generated risk briefing for the asset's current HNDL score as a formatted PDF document. Suitable for sharing with compliance officers or audit teams.
+
+### Path parameters
+
+<ParamField path="asset_id" type="string" required>
+  UUID of the asset whose briefing to download.
+</ParamField>
+
+### Response
+
+Returns `200 OK` with `Content-Type: application/pdf` and a `Content-Disposition: attachment; filename="hndl-briefing-{asset_id}.pdf"` header. The response body is a binary PDF.
+
+<Info>
+  PDF generation requires Typst to be installed on the Quanterios API server. Self-hosted deployments must include Typst in the server environment. Cloud-hosted tenants have Typst pre-installed and available by default.
+</Info>
+
+```bash cURL
+curl -X GET "https://api.quanterios.com/api/v1/assets/9b2e4f7a-1234-4abc-8def-000011112222/hndl/briefing.pdf" \
+  -H "X-Tenant-Id: 3f8a1c2d-0000-4b5e-9f7a-abc123def456" \
+  -H "X-API-Key: qk_live_xxxxxxxxxxxxxxxxxxxxxx" \
+  --output "hndl-briefing.pdf"
+```
+
+---
+
+## Aggregate summary
+
+`GET /api/v1/hndl/summary`
+
+Return tenant-wide HNDL risk statistics. Useful for building executive dashboards or alerting on severity-distribution changes.
+
+### Response
+
+<ResponseField name="total_assets" type="integer">
+  Total number of CBOM assets in the tenant.
+</ResponseField>
+
+<ResponseField name="critical_count" type="integer">
+  Number of assets with an overall HNDL score of 80-100.
+</ResponseField>
+
+<ResponseField name="high_count" type="integer">
+  Number of assets with an overall HNDL score of 60-79.
+</ResponseField>
+
+<ResponseField name="medium_count" type="integer">
+  Number of assets with an overall HNDL score of 40-59.
+</ResponseField>
+
+<ResponseField name="low_count" type="integer">
+  Number of assets with an overall HNDL score of 20-39.
+</ResponseField>
+
+<ResponseField name="informational_count" type="integer">
+  Number of assets with an overall HNDL score of 0-19.
+</ResponseField>
+
+<CodeGroup>
+
+```bash cURL
+curl -X GET "https://api.quanterios.com/api/v1/hndl/summary" \
+  -H "X-Tenant-Id: 3f8a1c2d-0000-4b5e-9f7a-abc123def456" \
+  -H "X-API-Key: qk_live_xxxxxxxxxxxxxxxxxxxxxx"
+```
+
+```json Response
+{
+  "total_assets": 387,
+  "critical_count": 42,
+  "high_count": 91,
+  "medium_count": 138,
+  "low_count": 87,
+  "informational_count": 29
+}
+```
+
+</CodeGroup>
+
+<AccordionGroup>
+  <Accordion title="Severity thresholds reference">
+    | Score range | Severity | Recommended action |
+    |---|---|---|
+    | 80-100 | Critical | Immediate remediation required. Begin PQC migration planning within 30 days. |
+    | 60-79 | High | Prioritize in next sprint. Add to crypto debt backlog with a defined deadline. |
+    | 40-59 | Medium | Schedule rotation within the current quarter. |
+    | 20-39 | Low | Monitor. Include in annual cryptographic hygiene review. |
+    | 0-19 | Informational | No immediate action required. |
+  </Accordion>
+  <Accordion title="Caching behavior">
+    The scoring engine caches results for up to 24 hours per asset. A new score is computed when any of the following occur: the asset's algorithm, exposure, sensitivity, or regulatory_tags fields change; a manual rescore is triggered via the API; or the cache TTL expires.
+  </Accordion>
+</AccordionGroup>
