@@ -1,0 +1,114 @@
+---
+title: "AI Auditor"
+sidebarTitle: "AI Auditor"
+description: "How the language-model layer detects cryptographic weaknesses that deterministic rules cannot reliably catch."
+---
+
+Static analysis rules are fast and precise for known-bad patterns. They reliably flag `md5()` calls, ECB mode usage, and deprecated TLS versions. But a significant class of cryptographic weakness requires understanding intent, data flow, and context across multiple lines of code. Rules written as syntactic patterns cannot reason about whether a function is being used in a security context, whether a variable carries an IV from another file, or whether a developer has reimplemented AES from scratch. The AI auditor fills this gap.
+
+## How It Works
+
+<Steps>
+  <Step title="PR Diff Extraction">
+    When a pull request is opened or updated, the firewall extracts the full unified diff from the base branch to the head commit. The diff includes added lines, removed lines, and surrounding context for each changed hunk.
+  </Step>
+  <Step title="Crypto-Relevant Filter">
+    The diff is filtered down to hunks that contain at least one of 42 crypto-relevant keywords. Hunks with no keyword matches are discarded before any model call. This reduces noise and keeps token usage predictable.
+  </Step>
+  <Step title="Hunks Sent to Claude">
+    The filtered hunks are assembled into a structured prompt and sent to Claude for analysis. The prompt includes the finding category schema, confidence scoring instructions, and a system message that focuses the model on cryptographic risk only.
+  </Step>
+  <Step title="Model Returns Structured Findings">
+    Claude returns a JSON array of findings. Each finding contains: the file path, the line range, the finding category, a plain-English explanation of the risk, a recommended fix, and a confidence score between 0.0 and 1.0.
+  </Step>
+  <Step title="High-Confidence Findings Posted to PR">
+    Findings with a confidence score of 0.6 or above are posted as a structured comment on the pull request. Findings below 0.6 are stored as low-confidence training signals and not shown to developers.
+  </Step>
+</Steps>
+
+## What the AI Catches That Rules Miss
+
+<Tabs>
+  <Tab title="Shadow Crypto">
+    A developer writes a custom AES-like encryption function using bitwise operations and key mixing. The function name is `encrypt_payload` and nothing in the syntax matches a known-bad pattern. A Semgrep rule cannot flag it because it does not import a deprecated library or call a banned function. The AI auditor reads the implementation, recognizes the structure of a hand-rolled block cipher, and flags it as `custom_crypto` with a high confidence score.
+
+    ```python
+    def encrypt_payload(data: bytes, key: bytes) -> bytes:
+        # Developer's custom substitution-permutation network
+        rounds = 10
+        state = bytearray(data)
+        for r in range(rounds):
+            state = _sub_bytes(state, key, r)
+            state = _mix_columns(state)
+        return bytes(state)
+    ```
+
+    The fix is straightforward: use `cryptography.hazmat` or `Fernet` instead. But no rule would have found it.
+  </Tab>
+  <Tab title="Context-Dependent Weakness">
+    `random.random()` is not inherently insecure. It is perfectly appropriate for simulations, A/B test bucketing, and game logic. A rule that flagged every use of `random` would produce enormous false-positive volume. The AI auditor evaluates the context: if `random` is used to generate a session token, a password reset link, or a CSRF nonce, it is a `weak_rng` finding. If it is used to shuffle a deck of cards, it is not flagged.
+
+    ```python
+    # Flagged: random used to generate a security token
+    def generate_reset_token(user_id: int) -> str:
+        return str(user_id) + str(random.random())
+
+    # Not flagged: random used for non-security shuffling
+    def shuffle_deck(cards: list) -> list:
+        random.shuffle(cards)
+        return cards
+    ```
+  </Tab>
+  <Tab title="Cross-File Patterns">
+    An IV is generated in `utils/crypto_helpers.py` as a module-level constant. It is imported and reused across three different encryption call sites in `services/payment.py`, `services/auth.py`, and `workers/export.py`. No individual file contains a complete picture of the problem. The AI auditor, operating on the full diff, can see that the same IV constant appears in both the definition hunk and the usage hunks, and flags the pattern as `iv_reuse` with a cross-file note in the explanation.
+
+    ```python
+    # utils/crypto_helpers.py
+    SHARED_IV = b'\x1a\x2b\x3c\x4d\x5e\x6f\x70\x81' * 2  # 16 bytes, module-level constant
+
+    # services/payment.py
+    from utils.crypto_helpers import SHARED_IV
+    cipher = AES.new(key, AES.MODE_CBC, SHARED_IV)
+    ```
+  </Tab>
+</Tabs>
+
+## Privacy and Security
+
+<Info>
+  Code sent for AI analysis is transmitted to the Anthropic API. Anthropic does not use customer API submissions for model training. The data is not stored beyond the duration of the API request. No full repository content is ever transmitted: only the filtered diff hunks that triggered keyword matches.
+</Info>
+
+| Data element | What is sent | Where it goes | Retention | Opt-out |
+|---|---|---|---|---|
+| Diff hunks | Only keyword-matched hunks, not the full diff | Anthropic Claude API | None beyond the request | Use Semgrep-only mode |
+| File paths | Included with each hunk for context | Anthropic Claude API | None beyond the request | Use Semgrep-only mode |
+| Repository metadata | Not sent | Not applicable | Not applicable | Not applicable |
+| Commit history | Not sent | Not applicable | Not applicable | Not applicable |
+
+To disable AI analysis entirely and run Semgrep rules only, set `ai_auditor: false` in your Quanterios configuration file or set the `QUANTERIOS_AI_AUDITOR=false` environment variable in your CI workflow.
+
+## Keyword Matching
+
+<Accordion title="42 keywords that trigger diff extraction">
+  A hunk is sent for AI analysis only if it contains at least one of these keywords. Hunks with no matches are discarded before any API call is made.
+
+  ```
+  aes         des         rsa         ecc         ecdsa       ecdh
+  dh          dsa         hmac        sha1        sha256      sha512
+  md5         rc4         blowfish    chacha20    salsa20     poly1305
+  pbkdf2      bcrypt      scrypt      argon2      fernet      nacl
+  openssl     tls         ssl         cipher      encrypt     decrypt
+  hash        sign        verify      nonce       iv          salt
+  key         secret      token       random      urandom     cryptography
+  pycrypto    hashlib
+  ```
+
+  The matching is case-insensitive and matches substrings, so `AES256`, `aes_key`, and `PBKDF2HMAC` all match. The filter is intentionally broad: false positives at this stage are acceptable because the model performs the actual classification.
+</Accordion>
+
+## Token Budget
+
+Each AI analysis call is limited to a maximum of 40 hunks per pull request. If a PR contains more than 40 keyword-matching hunks, the firewall selects the 40 hunks with the highest keyword density for analysis and notes the truncation in the PR comment. This keeps every scan within the model context limit and prevents unexpected cost spikes on large PRs.
+
+For PRs that consistently exceed 40 hunks, consider breaking large changes into smaller, focused PRs. Focused diffs also produce more accurate AI analysis because the model has clearer context for each change.

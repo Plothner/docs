@@ -1,0 +1,199 @@
+---
+title: "Understanding Findings"
+sidebarTitle: "Findings"
+description: "A reference guide to every finding category the AI auditor produces, with examples and remediation guidance."
+---
+
+The AI auditor produces findings across seven categories. Each category represents a class of cryptographic weakness that static rules alone cannot reliably detect. This page explains what each category covers, why it matters, and how to fix it.
+
+<Info>
+  All finding categories are present in both the PR comment and the Quanterios dashboard. The dashboard also shows historical trend data so you can track how finding volume changes over time.
+</Info>
+
+## Finding Categories
+
+<AccordionGroup>
+  <Accordion title="custom_crypto" icon="code">
+    **What it detects:** Hand-rolled encryption or hashing logic written from scratch instead of using a vetted cryptographic library.
+
+    **Why it matters:** Custom implementations almost always contain subtle flaws: incorrect padding, weak key schedules, or timing vulnerabilities that allow an attacker to recover plaintext or keys.
+
+    **Vulnerable**
+
+    ```python
+    # XOR-based "encryption" with a repeating key
+    def encrypt(data, key):
+        return bytes([b ^ key[i % len(key)] for i, b in enumerate(data)])
+    ```
+
+    **Fixed**
+
+    ```python
+    from cryptography.fernet import Fernet
+
+    encrypted = Fernet(key).encrypt(data)
+    ```
+
+    **Typical confidence range:** 0.75 to 0.95. Custom crypto is usually unambiguous once the auditor recognizes the pattern.
+  </Accordion>
+
+  <Accordion title="iv_reuse" icon="repeat">
+    **What it detects:** Initialization vectors (IVs) or nonces that are hardcoded, zero-filled, or derived deterministically rather than generated fresh for every encryption operation.
+
+    **Why it matters:** Reusing an IV under the same key in CBC mode leaks information about plaintext. In CTR or GCM mode, IV reuse is catastrophic: it breaks confidentiality and authentication simultaneously.
+
+    **Vulnerable**
+
+    ```python
+    # Zero IV reused across every call
+    cipher = AES.new(key, AES.MODE_CBC, iv=b'\x00' * 16)
+    ```
+
+    **Fixed**
+
+    ```python
+    import os
+
+    cipher = AES.new(key, AES.MODE_CBC, iv=os.urandom(16))
+    ```
+
+    **Typical confidence range:** 0.70 to 0.90. Confidence is higher when the literal value is visible in the diff and lower when the IV variable is defined in another file.
+  </Accordion>
+
+  <Accordion title="hardcoded_salt" icon="key">
+    **What it detects:** Salts, keys, or secrets that are defined as string or byte literals in source code rather than read from environment variables or a secrets manager.
+
+    **Why it matters:** A hardcoded salt provides no protection against precomputed attacks. Every installation of the software uses the same salt, reducing it to no salt at all. Hardcoded keys and tokens are similarly trivially extracted from source history even after removal.
+
+    **Vulnerable**
+
+    ```python
+    SALT = b"mysecretfixedsalt123"
+
+    hashed = hashlib.pbkdf2_hmac("sha256", password, SALT, 260000)
+    ```
+
+    **Fixed**
+
+    ```python
+    import os
+
+    SALT = os.urandom(32)  # Generated once per credential, stored alongside the hash
+
+    hashed = hashlib.pbkdf2_hmac("sha256", password, SALT, 260000)
+    ```
+
+    **Typical confidence range:** 0.80 to 0.98. Literal byte strings adjacent to hashing calls are a strong signal.
+  </Accordion>
+
+  <Accordion title="weak_rng" icon="shuffle">
+    **What it detects:** Use of non-cryptographic random number generators such as `random`, `Math.random`, or `rand()` in security-sensitive contexts like token generation, key derivation, or nonce production.
+
+    **Why it matters:** Standard random number generators are designed for simulation and statistical work, not security. Their output is predictable given enough samples. An attacker who can observe several tokens can predict future ones.
+
+    **Vulnerable**
+
+    ```python
+    import random
+    import string
+
+    # Predictable: random.choice is not cryptographically secure
+    token = ''.join(random.choice(string.ascii_letters) for _ in range(32))
+    ```
+
+    **Fixed**
+
+    ```python
+    import secrets
+
+    token = secrets.token_urlsafe(32)
+    ```
+
+    **Typical confidence range:** 0.65 to 0.85. Confidence depends on context: `random` in a token generation function scores higher than `random` in a test file.
+  </Accordion>
+
+  <Accordion title="algorithmic_downgrade" icon="arrow-down">
+    **What it detects:** Configuration changes that allow negotiation of weak cipher suites, deprecated protocol versions (TLS 1.0, SSL 3.0), or export-grade algorithms.
+
+    **Why it matters:** A single misconfigured cipher string can silently enable RC4, 3DES, or NULL encryption for any client that requests it. Downgrade attacks like POODLE and BEAST exploit exactly this class of misconfiguration.
+
+    **Vulnerable**
+
+    ```python
+    # RC4 is explicitly allowed; this cipher string is dangerous
+    ssl_context.set_ciphers('DEFAULT:!aNULL:!eNULL:RC4')
+    ```
+
+    **Fixed**
+
+    ```python
+    # Only ECDHE with AESGCM or ChaCha20-Poly1305; forward secrecy enforced
+    ssl_context.set_ciphers('ECDHE+AESGCM:ECDHE+CHACHA20')
+    ```
+
+    **Typical confidence range:** 0.75 to 0.92. Cipher string analysis is reliable when the full string is present in the diff.
+  </Accordion>
+
+  <Accordion title="missing_auth" icon="lock-open">
+    **What it detects:** Encryption that does not include an authentication tag or message authentication code (MAC), leaving ciphertext open to tampering without detection.
+
+    **Why it matters:** Unauthenticated encryption provides confidentiality but not integrity. An attacker who can intercept ciphertext can flip bits in predictable ways to alter the decrypted plaintext, a technique known as a padding oracle or bit-flipping attack.
+
+    **Vulnerable**
+
+    ```python
+    # CBC with no MAC: ciphertext is malleable
+    ciphertext = AES.new(key, AES.MODE_CBC, iv).encrypt(data)
+    ```
+
+    **Fixed**
+
+    ```python
+    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
+    # GCM provides authenticated encryption; tampering is detected
+    ciphertext = AESGCM(key).encrypt(nonce, data, associated_data)
+    ```
+
+    **Typical confidence range:** 0.70 to 0.88. Confidence is highest when the unauthenticated mode (CBC, CTR, CFB) is explicit and no separate MAC call follows.
+  </Accordion>
+
+  <Accordion title="secret" icon="eye-slash">
+    **What it detects:** API tokens, passwords, private keys, or other credentials committed directly to source code as string literals.
+
+    **Why it matters:** Secrets in source code are accessible to every developer with repository access, every build artifact, and every git clone ever made. Even after removal, secrets remain in git history and must be rotated immediately.
+
+    **Vulnerable**
+
+    ```python
+    # This key is now in git history forever, even after deletion
+    API_KEY = "sk-proj-abc123def456"
+    ```
+
+    **Fixed**
+
+    ```python
+    import os
+
+    API_KEY = os.environ["API_KEY"]
+    ```
+
+    **Typical confidence range:** 0.85 to 0.99. High-entropy string literals adjacent to assignment statements are a very strong signal.
+  </Accordion>
+</AccordionGroup>
+
+## Confidence Scoring
+
+Every AI auditor finding includes a confidence score between 0.0 and 1.0. The score reflects how certain the model is that the flagged code represents a real cryptographic weakness given the surrounding context.
+
+| Range | Label | Action |
+|---|---|---|
+| 0.8 to 1.0 | High | Definitely a real issue. Fix before merging. |
+| 0.6 to 0.8 | Medium | Likely an issue. Review the context before accepting the finding. |
+| Below 0.6 | Low | Not posted to the PR. Logged as a training signal for model improvement. |
+
+Only high and medium findings are posted as PR comments. Low-confidence findings are captured in the Quanterios dashboard under the training signals view.
+
+<Tip>
+  Use the thumbs up and thumbs down reactions on finding comments to improve confidence calibration over time. A thumbs up confirms the finding was accurate. A thumbs down marks it as a false positive. The model uses these signals to adjust its thresholds for your codebase.
+</Tip>

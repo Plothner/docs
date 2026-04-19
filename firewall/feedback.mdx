@@ -1,0 +1,82 @@
+---
+title: "Developer Feedback"
+sidebarTitle: "Feedback"
+description: "How to give feedback on findings, use the explain command, and help the AI auditor improve over time."
+---
+
+Every reaction and command a developer uses in a PR comment is a signal. The AI auditor learns from these signals to improve confidence calibration over time: reducing false positives for your codebase, surfacing real issues more reliably, and adjusting thresholds based on the patterns your team actually writes. Feedback takes seconds and has a measurable impact on scan quality over subsequent sprints.
+
+## How to Give Feedback
+
+<Steps>
+  <Step title="Find a Finding in the PR Comment">
+    After the firewall scan completes, a structured comment appears on the pull request. Each AI auditor finding includes the category, the file and line reference, a plain-English explanation of the risk, and a recommended fix.
+  </Step>
+  <Step title="React With Thumbs Up or Thumbs Down">
+    Use the built-in reaction picker on the finding comment to submit your assessment:
+
+    - Thumbs up: the finding is accurate and represents a real issue
+    - Thumbs down: the finding is a false positive or does not apply in this context
+
+    Both reactions are stored as training signals. The model uses these to adjust confidence scores for similar patterns in future scans against this repository.
+  </Step>
+  <Step title="Use the Explain Command for On-Demand Analysis">
+    If you want a deeper explanation of a specific line, or if you want to ask about code that was not flagged in the original scan, post a comment on the PR:
+
+    ```
+    @quanterios explain <file>:<line>
+    ```
+
+    For example:
+
+    ```
+    @quanterios explain src/auth/token_service.py:83
+    ```
+
+    The bot responds with a focused analysis of the code at that location, an explanation of any risk it introduces, and a suggested remediation. Explain requests are also stored as training signals.
+  </Step>
+</Steps>
+
+## What Happens With Your Feedback
+
+<Info>
+  Feedback signals are stored in the Quanterios training database and used to recalibrate confidence thresholds for your repository. They are never used to train the underlying Claude model. Anthropic does not receive feedback signals.
+</Info>
+
+| Signal type | Triggered by | What it means |
+|---|---|---|
+| `thumbs_up` | Thumbs up reaction on a finding comment | Developer confirmed the finding is accurate |
+| `thumbs_down` | Thumbs down reaction on a finding comment | Developer identified the finding as a false positive |
+| `explain_request` | `@quanterios explain` command in a PR comment | Developer requested deeper analysis of a specific location |
+| `scan_completed` | Every completed scan | Baseline record of which categories were evaluated and what confidence scores were produced |
+
+Feedback data is aggregated across scans and reviewed periodically to identify systematic patterns. If a particular category consistently produces false positives for your codebase, its confidence threshold is raised so those findings are filtered before reaching the PR.
+
+## The Explain Command
+
+Use `@quanterios explain` anywhere in a PR comment to request on-demand analysis of any line in the diff, whether or not it was flagged in the original scan.
+
+```
+@quanterios explain <file>:<line>
+```
+
+Example usage in a PR comment:
+
+```
+I'm not sure about this one. Can you explain the risk here?
+
+@quanterios explain internal/crypto/session.go:142
+```
+
+The bot responds with:
+
+1. The code at the referenced location
+2. A plain-English explanation of any cryptographic risk
+3. The risk category, if one applies
+4. A recommended fix or confirmation that the code looks correct
+
+Explain requests count toward the monthly AI audit budget for paid tiers. On the free tier, each explain request counts as one AI audit.
+
+<Note>
+  Feedback signals are tied to the repository fingerprint, not to the individual developer who submitted them. The Quanterios platform does not track which developer reacted to which finding. Feedback is aggregated at the repository level for privacy.
+</Note>

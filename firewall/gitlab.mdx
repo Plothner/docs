@@ -1,0 +1,83 @@
+---
+title: "Install on GitLab"
+description: "Add the Crypto Debt Firewall to any GitLab project using a CI template."
+---
+
+The Quanterios Crypto Debt Firewall runs as a GitLab CI job. When a merge request is opened or a new commit is pushed to an open merge request, the job runs the Semgrep rule engine and AI auditor against the diff, then posts a structured note directly on the merge request. The note is sticky: subsequent scans update the existing note rather than creating new ones, keeping the MR timeline clean.
+
+## Prerequisites
+
+- A GitLab project with CI/CD pipelines enabled
+- Maintainer or Owner access to configure CI/CD variables
+- A personal access token or project access token with the `api` scope (used to post MR notes)
+
+## Setup
+
+<Steps>
+  <Step title="Set Up CI Variables">
+    Go to your project in GitLab, then navigate to **Settings > CI/CD > Variables**. Add the following variables. Mark both as **Masked** to prevent them from appearing in job logs.
+
+    | Variable | Description |
+    |---|---|
+    | `QUANTERIOS_API_KEY` | Your Quanterios API key, available in your account settings. |
+    | `QUANTERIOS_GITLAB_TOKEN` | A GitLab personal access token or project access token with the `api` scope. |
+  </Step>
+  <Step title="Add the CI Template">
+    Create or update the `.gitlab-ci.yml` file in the root of your repository with the following content. If you already have a `.gitlab-ci.yml`, add the job definition alongside your existing stages.
+
+    ```yaml
+    stages:
+      - scan
+
+    quanterios-firewall:
+      stage: scan
+      image: ghcr.io/plothner/quanterios-firewall-gitlab:latest
+      variables:
+        QUANTERIOS_BACKEND_URL: "https://api.quanterios.com"
+      rules:
+        - if: $CI_MERGE_REQUEST_IID
+      script:
+        - python entrypoint.py
+    ```
+
+    The `rules` block ensures the job runs only in merge request pipelines. It will not run on branch pipelines or scheduled pipelines.
+  </Step>
+  <Step title="Open a Merge Request">
+    Push your changes and open a merge request. The `quanterios-firewall` job appears in the pipeline automatically. No additional configuration is required.
+  </Step>
+  <Step title="Review Findings">
+    When the job completes, a note is posted on the merge request. The note contains two sections: a Semgrep table with file, line, rule ID, and severity; and an AI auditor section with plain-English risk descriptions and recommended remediations.
+
+    On subsequent pushes to the same merge request, the job updates the existing note in place. You can identify the managed note by its HTML marker: `<!-- quanterios-firewall -->`. Do not remove or edit that marker or the update mechanism will create a new note instead of updating the existing one.
+  </Step>
+</Steps>
+
+## OAuth Setup
+
+For enhanced integration, you can connect your GitLab account via OAuth instead of using a personal access token. OAuth grants narrower, project-scoped permissions and does not expire when you rotate your personal token.
+
+To set up OAuth:
+
+1. Go to your Quanterios account at `app.quanterios.com/integrations`.
+2. Click **Connect GitLab** and follow the authorization flow.
+3. Once authorized, Quanterios generates a project-scoped token automatically. You can remove the `QUANTERIOS_GITLAB_TOKEN` variable from your CI/CD settings.
+
+OAuth setup is optional. Personal access tokens continue to work and are the simpler path for individual projects.
+
+<Info>
+  The sticky note behavior is intentional. GitLab merge request timelines become cluttered when scanners post a new note on every push. The Quanterios firewall uses the `<!-- quanterios-firewall -->` HTML comment as a lookup key to find and update the existing note. If the note is deleted (for example, by a project maintainer), the next scan will create a fresh one.
+</Info>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Job fails with a 401 Unauthorized error">
+    Verify that the `QUANTERIOS_GITLAB_TOKEN` variable is set correctly and that the token has the `api` scope. Tokens with only `read_api` scope cannot post or update MR notes. Also confirm the token has not expired; GitLab personal access tokens can have an expiry date set at creation time.
+  </Accordion>
+  <Accordion title="Job runs but no note appears on the merge request">
+    Check the job log for a line beginning with `POST /projects/.../merge_requests/.../notes`. If the request appears in the log with a 2xx response code, the note was posted but may be hidden. In GitLab, notes from bots can be collapsed under "Show all activity." If the request does not appear, the diff was empty or contained no supported file types.
+  </Accordion>
+  <Accordion title="Pipeline runs on branch pushes, not just merge requests">
+    The `rules: - if: $CI_MERGE_REQUEST_IID` condition restricts the job to merge request pipelines. If you see the job running on plain branch pushes, verify that your GitLab project is not configured to use a merged results pipeline or a branch-level CI override that injects additional variables.
+  </Accordion>
+</AccordionGroup>

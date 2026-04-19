@@ -1,0 +1,99 @@
+---
+title: "What is Quanterios?"
+sidebarTitle: "Introduction"
+description: "Cryptographic governance for the post-quantum era. Discover, score, and eliminate cryptographic risk across your entire infrastructure."
+---
+
+Quanterios is a cryptographic governance platform that gives security and engineering teams complete visibility into the cryptographic assets scattered across their code, cloud infrastructure, certificates, and APIs. It scores each asset for post-quantum risk, maps it to compliance frameworks, and delivers the migration tooling needed to remediate findings without disrupting production systems.
+
+<Info>
+  **Harvest Now, Decrypt Later (HNDL)** is not a future threat. Nation-state adversaries are capturing encrypted traffic today and storing it for decryption once a cryptographically relevant quantum computer (CRQC) becomes available. Data with a long shelf life, such as health records, financial transactions, and government communications, is already at risk. The window to act is narrowing.
+</Info>
+
+## The Problem
+
+Organizations face three compounding challenges when trying to address cryptographic risk:
+
+1. **Visibility gaps.** Cryptographic assets are scattered across thousands of repositories, cloud accounts, containers, and third-party APIs. There is no single pane of glass. Teams discover RSA-2048 keys in production only after an audit or an incident.
+
+2. **Risk without context.** Knowing that a certificate uses SHA-1 is not enough. Security teams need to know how sensitive the data it protects is, how exposed the system is to network capture, and how quickly migration could be completed. Without that context, prioritization is guesswork.
+
+3. **Migration paralysis.** Swapping algorithms in production systems is risky. There are no standard playbooks for most stacks, hybrid mode coordination is manual, and breakage prediction is non-existent. Teams defer migration indefinitely because the cost and risk of action feels higher than the cost of inaction.
+
+## The Solution
+
+Quanterios addresses the full cryptographic governance lifecycle through five integrated products.
+
+<CardGroup cols={2}>
+  <Card
+    title="Crypto Debt Firewall"
+    icon="shield-check"
+    href="/customer/products#crypto-debt-firewall"
+  >
+    Scan every pull request for cryptographic anti-patterns before they reach production. Integrates with GitHub, GitLab, and Bitbucket. Free tier available.
+  </Card>
+  <Card
+    title="Crypto Risk Intelligence"
+    icon="chart-bar"
+    href="/customer/products#crypto-risk-intelligence"
+  >
+    Discover cryptographic assets across 40 cloud and infrastructure connectors. Score each asset with the HNDL model across four dimensions and map findings to 13 compliance frameworks.
+  </Card>
+  <Card
+    title="Migration Intelligence"
+    icon="arrow-right-arrow-left"
+    href="/customer/products#migration-intelligence"
+  >
+    Execute safe, automated migration across 29 supported paths using Terraform, Ansible, and Helm playbooks. Predict breakage with an XGBoost model (AUC 0.94) before you touch production.
+  </Card>
+  <Card
+    title="Crypto Agility API"
+    icon="plug"
+    href="/customer/products#crypto-agility-api"
+  >
+    Integrate once and swap cryptographic algorithms at the API layer without redeploying your services. Coming soon.
+  </Card>
+  <Card
+    title="PQC Certificate Authority"
+    icon="certificate"
+    href="/customer/products#pqc-certificate-authority"
+  >
+    Issue ML-KEM and ML-DSA certificates with full lifecycle management built for the post-quantum transition. Coming soon.
+  </Card>
+</CardGroup>
+
+## How It Works
+
+<Steps>
+  <Step title="Install the Firewall">
+    Add the Quanterios GitHub Action (or GitLab/Bitbucket equivalent) to your CI pipeline in under five minutes. Every pull request is scanned for cryptographic anti-patterns before code merges.
+  </Step>
+  <Step title="Discover Assets">
+    Connect your cloud accounts, container registries, certificate stores, and repositories through Quanterios connectors. The platform builds a live cryptographic inventory across your entire infrastructure.
+  </Step>
+  <Step title="Score and Prioritize">
+    Each asset receives an HNDL risk score from 0 to 100 across four dimensions: algorithm weakness, data sensitivity, exposure level, and migration urgency. Compliance gaps are mapped automatically to the frameworks you care about.
+  </Step>
+  <Step title="Migrate Safely">
+    Select a remediation path and let Migration Intelligence generate the Terraform, Ansible, or Helm playbook. Run breakage prediction before applying changes. Use hybrid mode to operate old and new algorithms in parallel during rollover.
+  </Step>
+</Steps>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card
+    title="Quickstart"
+    icon="rocket"
+    href="/customer/quickstart"
+  >
+    Install the Crypto Debt Firewall in five minutes with a single GitHub Action.
+  </Card>
+  <Card
+    title="Products"
+    icon="grid-2"
+    href="/customer/products"
+  >
+    Explore all five Quanterios products and how they work together.
+  </Card>
+</CardGroup>

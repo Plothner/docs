@@ -1,0 +1,100 @@
+---
+title: "Crypto Debt Firewall"
+sidebarTitle: "Overview"
+description: "Two detection layers that catch weak cryptography before it merges."
+---
+
+The Crypto Debt Firewall integrates directly into your pull request workflow and runs two complementary detection layers on every code change: a deterministic Semgrep rule engine and a context-aware AI auditor. Together they surface cryptographic weaknesses at review time, before vulnerable code reaches production.
+
+<Info>
+  The Crypto Debt Firewall is available for GitHub, GitLab, and Bitbucket. A free tier is included with every Quanterios account, with no credit card required to get started.
+</Info>
+
+## How It Works
+
+<Steps>
+  <Step title="Code Change Detected">
+    A developer opens or updates a pull request (or merge request). The firewall triggers automatically via your CI platform with no manual steps required.
+  </Step>
+  <Step title="Semgrep Scans the Diff">
+    A curated set of Semgrep rules runs against the changed files. Rules target known-weak primitives, deprecated functions, and insecure configurations across all supported languages.
+  </Step>
+  <Step title="AI Auditor Analyzes the Diff">
+    A language-model auditor reviews the same diff for higher-order patterns that static rules cannot reliably detect: custom crypto implementations, IV reuse across call sites, and algorithmic downgrades introduced by configuration changes.
+  </Step>
+  <Step title="Findings Posted to the PR">
+    A structured comment is posted directly on the pull request. Semgrep findings include exact file and line references. AI findings include a plain-English explanation of the risk and recommended remediation.
+  </Step>
+</Steps>
+
+## What It Catches
+
+<Tabs>
+  <Tab title="Semgrep Rules">
+    Semgrep rules execute against the diff using deterministic pattern matching. Every match includes a precise file path, line number, and severity rating.
+
+    | Category | Examples |
+    |---|---|
+    | Weak hash functions | MD5, SHA-1 |
+    | Weak cipher algorithms | DES, 3DES, RC4, AES-ECB |
+    | Weak key sizes | RSA keys shorter than 2048 bits |
+    | Deprecated functions | OpenSSL legacy EVP calls, Python `Crypto` (PyCrypto) |
+    | Insecure cipher modes | ECB mode, unauthenticated CTR without MAC |
+  </Tab>
+  <Tab title="AI Auditor">
+    The AI auditor reasons over the full diff context, identifying patterns that require understanding intent and data flow rather than purely syntactic matching.
+
+    | Category | Description |
+    |---|---|
+    | `custom_crypto` | Hand-rolled encryption or hashing logic |
+    | `iv_reuse` | Initialization vectors derived from constants or reused across calls |
+    | `hardcoded_salt` | Static or predictable salts in KDFs and password hashing |
+    | `weak_rng` | Non-cryptographic random number generators used in security contexts |
+    | `algorithmic_downgrade` | Configuration changes that negotiate weaker cipher suites or protocol versions |
+    | `missing_auth` | Encryption without authentication (unauthenticated ciphertext) |
+    | `secret` | Hardcoded keys, tokens, or passwords embedded in source code |
+  </Tab>
+</Tabs>
+
+## Supported Languages
+
+Both detection layers support the same set of languages. No per-language configuration is required.
+
+| Language | Semgrep Rules | AI Auditor |
+|---|---|---|
+| Python | Yes | Yes |
+| Java | Yes | Yes |
+| Go | Yes | Yes |
+| Node.js | Yes | Yes |
+| Rust | Yes | Yes |
+
+## Supported Platforms
+
+<CardGroup cols={3}>
+  <Card title="GitHub" icon="github" href="/firewall/github">
+    Install via a GitHub Actions workflow file. Supports the `@quanterios explain` bot command for on-demand analysis.
+  </Card>
+  <Card title="GitLab" icon="gitlab" href="/firewall/gitlab">
+    Install via a GitLab CI template. Findings are posted as a sticky merge request note that updates in place.
+  </Card>
+  <Card title="Bitbucket" icon="bitbucket" href="/firewall/bitbucket">
+    Install via a Bitbucket Pipelines pipe. Supports the `@quanterios explain` command in PR comments.
+  </Card>
+</CardGroup>
+
+## Pricing
+
+| Feature | Free | Paid |
+|---|---|---|
+| Semgrep rule scans | Included | Included |
+| AI auditor analysis | 50 PRs per month | Unlimited |
+| Supported languages | All 5 | All 5 |
+| Supported platforms | All 3 | All 3 |
+| `@quanterios explain` commands | 10 per month | Unlimited |
+| Priority queue for large diffs | No | Yes |
+| Audit log export | No | Yes |
+| SSO and org-level access controls | No | Yes |
+
+<Card title="Get Started in 5 Minutes" icon="rocket" href="/firewall/github">
+  Follow the quickstart guide for your platform and have the firewall running on your next pull request.
+</Card>

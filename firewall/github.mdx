@@ -1,0 +1,101 @@
+---
+title: "Install on GitHub"
+description: "Add the Crypto Debt Firewall to any GitHub repository in under five minutes using GitHub Actions."
+---
+
+The Quanterios Crypto Debt Firewall runs as a GitHub Actions workflow. When a pull request is opened or updated, the action checks out the repository, runs Semgrep rules against the diff, sends the diff to the AI auditor, and posts a structured comment directly on the PR. No external webhook setup or GitHub App installation is required for the free tier.
+
+## Prerequisites
+
+- A GitHub repository with at least one branch
+- Admin access to the repository (required to create workflow files and configure secrets)
+- GitHub Actions enabled on the repository (enabled by default for all new repositories)
+
+## Setup
+
+<Steps>
+  <Step title="Create the Workflow File">
+    Create the file `.github/workflows/quanterios-firewall.yml` in your repository with the following content:
+
+    ```yaml
+    name: Quanterios Crypto Debt Firewall
+    on:
+      pull_request:
+        types: [opened, synchronize]
+    permissions:
+      contents: read
+      pull-requests: write
+    jobs:
+      scan:
+        runs-on: ubuntu-latest
+        steps:
+          - uses: actions/checkout@v4
+            with:
+              fetch-depth: 0
+          - uses: Plothner/firewall-action@v1
+            with:
+              backend_url: https://api.quanterios.com
+              github_token: ${{ secrets.GITHUB_TOKEN }}
+    ```
+
+    The `GITHUB_TOKEN` secret is automatically provided by GitHub Actions. No manual secret configuration is needed for the free tier.
+  </Step>
+  <Step title="Push and Open a PR">
+    Commit and push the workflow file to your default branch. Then open any pull request against that branch. The `quanterios-firewall` check will appear in the checks list and run automatically.
+  </Step>
+  <Step title="Review the Scan Results">
+    When the scan completes, the action posts a comment on the pull request. The comment has two sections:
+
+    - **Semgrep Findings:** A table of pattern matches with file path, line number, rule ID, and severity. Each row links directly to the affected line.
+    - **AI Auditor Findings:** A list of higher-order issues with a plain-English explanation, the risk category (such as `iv_reuse` or `custom_crypto`), and a recommended remediation.
+
+    If no issues are found, the action posts a passing confirmation comment so reviewers know the scan ran.
+  </Step>
+  <Step title="Use Bot Commands">
+    After the initial scan comment is posted, any PR participant can request additional analysis by commenting:
+
+    ```
+    @quanterios explain <file>:<line>
+    ```
+
+    For example: `@quanterios explain src/crypto/aes_utils.py:47`
+
+    The bot responds with a focused explanation of the code at that location, the specific risk it introduces, and a suggested fix. This works for both Semgrep findings and lines not flagged in the original scan.
+  </Step>
+</Steps>
+
+## Configuration Options
+
+| Input | Required | Description |
+|---|---|---|
+| `backend_url` | Yes | The Quanterios API endpoint. Use `https://api.quanterios.com` for cloud or your self-hosted URL. |
+| `github_token` | Yes | GitHub token used to post PR comments. Automatically provided via `secrets.GITHUB_TOKEN`. |
+| `api_key` | No | Your Quanterios API key. Required for paid-tier features including unlimited scans and the audit log. |
+
+<Warning>
+  The `fetch-depth: 0` setting on the checkout step is required. Without it, Actions performs a shallow clone and the action cannot compute an accurate diff. Scans run on shallow clones will either fail or produce incomplete results.
+</Warning>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Action fails with a permission error">
+    Verify that the workflow file includes the `pull-requests: write` permission block at the job or workflow level. Without this permission, the GitHub token cannot post comments on pull requests.
+
+    If your organization uses a restrictive default permissions policy, you may also need to enable "Allow GitHub Actions to create and approve pull requests" under repository Settings > Actions > General.
+  </Accordion>
+  <Accordion title="No findings are posted after the scan">
+    The action only posts a comment when there are findings or when the scan completes cleanly with no issues. If no comment appears at all, check the Actions run log for errors. Common causes include:
+
+    - The diff contained no files in the supported language set
+    - The `backend_url` is unreachable from the Actions runner
+    - The API key is invalid (for paid-tier scans)
+  </Accordion>
+  <Accordion title="Rate limit exceeded">
+    Free-tier accounts are limited to 50 AI auditor scans and 10 bot commands per month. When the limit is reached, the action still runs Semgrep rules but skips the AI auditor step, and a notice is added to the PR comment. To restore full scanning, upgrade to the paid tier in your Quanterios account settings or wait for the monthly reset.
+  </Accordion>
+</AccordionGroup>
+
+<Tip>
+  Each scan comment includes thumbs-up and thumbs-down buttons for each AI finding. Clicking thumbs-up or thumbs-down sends a training signal back to Quanterios and improves auditor accuracy for your codebase over time. This feedback is anonymous and opt-in.
+</Tip>

@@ -1,0 +1,72 @@
+---
+title: "Install on Bitbucket"
+description: "Add the Crypto Debt Firewall to any Bitbucket repository using Bitbucket Pipelines."
+---
+
+The Quanterios Crypto Debt Firewall runs as a Bitbucket Pipelines pipe. When a pull request is created or updated, the pipe executes the Semgrep rule engine and AI auditor against the diff, then posts a structured comment on the pull request. Setup requires only a variable configuration and a single addition to your `bitbucket-pipelines.yml` file.
+
+## Prerequisites
+
+- A Bitbucket repository with Pipelines enabled (enable under Repository Settings > Pipelines > Settings)
+- Admin access to configure repository variables
+- A Bitbucket app password with `Repositories: Read` and `Pull requests: Write` permissions
+
+## Setup
+
+<Steps>
+  <Step title="Configure Repository Variables">
+    Go to your repository in Bitbucket, then navigate to **Repository Settings > Pipelines > Repository variables**. Add the following variables. Enable the **Secured** toggle on both to mask them in build logs.
+
+    | Variable | Description |
+    |---|---|
+    | `QUANTERIOS_API_KEY` | Your Quanterios API key, available in your account settings at `app.quanterios.com`. |
+    | `QUANTERIOS_BITBUCKET_TOKEN` | A Bitbucket app password with `Repositories: Read` and `Pull requests: Write` permissions. |
+  </Step>
+  <Step title="Add the Pipe">
+    Create or update `bitbucket-pipelines.yml` in the root of your repository. The pipe must run under the `pull-requests` section so it triggers on PR activity only.
+
+    ```yaml
+    pipelines:
+      pull-requests:
+        '**':
+          - step:
+              name: Quanterios Crypto Debt Firewall
+              script:
+                - pipe: docker://ghcr.io/plothner/quanterios-firewall-bitbucket:latest
+                  variables:
+                    QUANTERIOS_BACKEND_URL: "https://api.quanterios.com"
+                    QUANTERIOS_BITBUCKET_TOKEN: $QUANTERIOS_BITBUCKET_TOKEN
+    ```
+
+    If you already have a `pull-requests` section, add the step alongside your existing steps. The `'**'` pattern matches all branches. Replace it with a specific branch pattern such as `main` or `release/*` if you want to restrict scanning to certain target branches.
+  </Step>
+  <Step title="Create a Pull Request">
+    Push your changes and open a pull request against any branch. The `Quanterios Crypto Debt Firewall` step appears in the pipeline and runs automatically. No further configuration is required.
+  </Step>
+  <Step title="Review Findings">
+    When the pipeline step completes, a comment is posted on the pull request. The comment contains two sections:
+
+    - **Semgrep Findings:** A table showing the file path, line number, rule ID, and severity for each pattern match.
+    - **AI Auditor Findings:** A list of higher-order issues with a plain-English explanation of the risk and a recommended remediation.
+
+    If the diff contains no supported file types or no issues are found, the pipe posts a clean-pass confirmation so reviewers can confirm the scan completed.
+  </Step>
+</Steps>
+
+<Tip>
+  After the scan comment is posted, any PR participant can request a focused explanation by adding a comment with the syntax `@quanterios explain <file>:<line>`. For example: `@quanterios explain app/services/token_service.py:112`. The bot replies with a targeted analysis of that specific location, including the risk it introduces and a concrete remediation suggestion.
+</Tip>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Pipeline step fails with an authentication error">
+    Confirm that both `QUANTERIOS_API_KEY` and `QUANTERIOS_BITBUCKET_TOKEN` are set as repository variables and that the **Secured** toggle is enabled. A common mistake is setting the variables at the workspace level when the pipeline expects them at the repository level. Also verify that the app password has both `Repositories: Read` and `Pull requests: Write` permissions; a token with read-only access cannot post the results comment.
+  </Accordion>
+  <Accordion title="Pipe does not trigger on pull requests">
+    Verify that the step is nested under the `pull-requests` key in `bitbucket-pipelines.yml`, not under `branches` or `default`. Steps under `branches` run on direct pushes, not on PR activity. Also check that Pipelines is enabled for the repository under Repository Settings > Pipelines > Settings.
+  </Accordion>
+  <Accordion title="No comment appears after the step passes">
+    If the pipeline step completes with a green status but no comment appears on the pull request, check the step logs for the line `POST /2.0/repositories/.../pullrequests/.../comments`. If the request appears with a non-2xx response, the app password likely lacks `Pull requests: Write` permission. If the request does not appear at all, the diff was empty or contained no files in the supported language set.
+  </Accordion>
+</AccordionGroup>
