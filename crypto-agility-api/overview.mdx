@@ -1,0 +1,53 @@
+---
+title: "Crypto Agility API"
+description: "A single API layer for all cryptographic operations. When standards change, update the algorithm at the API layer. Application code never changes."
+---
+
+<Note>
+  The Crypto Agility API is the long-term evolution of the Code Patcher's hybrid shim. Where the shim is a migration artifact that gets checked into your repository once, the Crypto Agility API is a permanent runtime layer that your application calls for all crypto operations. The shim gets you to parity today; the API makes future migrations invisible to your application code.
+</Note>
+
+## The problem it solves
+
+Every migration Quanterios has facilitated so far touches individual call sites. Even with the Code Patcher automating the work, the underlying model remains the same: crypto logic is embedded in application code, and when algorithms change, code must change.
+
+The Crypto Agility API inverts this. Your application code calls a stable API for operations like `sign`, `verify`, `encrypt`, `decrypt`, and `derive_key`. The API resolves those calls to the currently configured algorithm. When NIST publishes a new standard or a vulnerability is discovered, you update a single configuration record in the Crypto Agility API. No application code is touched. No PRs are opened across dozens of repositories.
+
+## What it will do
+
+<CardGroup cols={2}>
+  <Card title="Stable operation surface" icon="plug">
+    A fixed set of semantic operations: `sign`, `verify`, `encrypt`, `decrypt`, `hash`, `derive_key`. The API contract does not change when the underlying algorithm does.
+  </Card>
+  <Card title="Algorithm versioning" icon="code-branch">
+    Each operation is bound to an algorithm version. You can advance the version globally, per tenant, per service, or per key group. Rollback is a version decrement.
+  </Card>
+  <Card title="Zero-downtime transitions" icon="shuffle">
+    Algorithm transitions happen at the API layer. The `hybrid` mode from the Code Patcher shim is a first-class API feature, not a code pattern.
+  </Card>
+  <Card title="Audit trail" icon="scroll">
+    Every API call is logged with the algorithm version used, the operation type, and the calling service identity. Compliance reports are generated automatically.
+  </Card>
+</CardGroup>
+
+## Why it matters beyond 2030
+
+NIST will not stop publishing new standards after the initial PQC suite (FIPS 203, 204, 205). Algorithm agility needs to become an architectural property, not a migration project. The Crypto Agility API makes your organization ready for the next transition before it is announced.
+
+## Current status
+
+**Coming soon.** The Crypto Agility API is in design. Development begins after the Migration Intelligence feature set reaches general availability.
+
+To be notified when the private beta opens, join the waitlist:
+
+```bash
+curl -X POST https://api.quanterios.com/v1/waitlist \
+  -H "Content-Type: application/json" \
+  -d '{
+    "product": "crypto-agility-api",
+    "email": "you@yourcompany.com",
+    "company": "Your Company"
+  }'
+```
+
+Or contact your Quanterios account manager directly to discuss early access and design partnership opportunities.

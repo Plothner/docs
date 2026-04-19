@@ -1,0 +1,67 @@
+---
+title: "PQC Certificate Authority"
+description: "Native issuance of ML-KEM and ML-DSA certificates. Full lifecycle management: auto-renewal, expiry alerts, and rotation. No dependency on external CAs for post-quantum."
+---
+
+<Note>
+  The PQC CA complements the existing migration playbooks. Today, quantum migration paths (`pqc-*` and `hyb-*` templates) source ML-KEM and ML-DSA certificates from external CAs. The PQC CA replaces that external dependency with a fully managed, Quanterios-operated issuer that integrates directly with the migration pipeline.
+</Note>
+
+## The problem it solves
+
+External certificate authorities are not yet issuing ML-KEM and ML-DSA certificates at scale. Organizations running quantum or hybrid migrations today must either:
+
+- Operate their own ACME-compatible CA with OQS support, which requires significant infrastructure and cryptographic expertise, or
+- Use self-signed certificates in non-production environments and wait for commercial CA support.
+
+The Quanterios PQC CA eliminates both workarounds. It issues FIPS 203 (ML-KEM) and FIPS 204 (ML-DSA) certificates as a managed service, with the same lifecycle automation Quanterios already provides for classical certificates.
+
+## What it will do
+
+<CardGroup cols={2}>
+  <Card title="Native PQC issuance" icon="certificate">
+    Issue ML-KEM-512, ML-KEM-768, ML-KEM-1024, ML-DSA-44, ML-DSA-65, and ML-DSA-87 certificates. Hybrid certificates (classical + PQC in a single cert) supported from day one.
+  </Card>
+  <Card title="ACME protocol support" icon="rotate">
+    Integrates with cert-manager, Certbot, and any ACME-compatible client. Existing automation that requests classical certificates can be pointed at the Quanterios PQC CA with a config change.
+  </Card>
+  <Card title="Auto-renewal and expiry alerts" icon="bell">
+    Certificates are renewed automatically before expiry. Alerts fire at 30, 14, and 7 days. Missed renewals trigger an escalation to the tenant admin.
+  </Card>
+  <Card title="Revocation and rotation" icon="arrow-rotate-left">
+    OCSP and CRL endpoints. One-click rotation via the API or dashboard. Rotation triggers the same PR delivery pipeline as a migration playbook.
+  </Card>
+</CardGroup>
+
+## Lifecycle management
+
+| Event | Automated action |
+|---|---|
+| Certificate issued | Recorded in CBOM, linked to assets discovered by Risk Intelligence |
+| 30 days before expiry | Renewal initiated automatically if ACME configured |
+| 14 days before expiry | Alert sent to tenant admin if renewal has not completed |
+| 7 days before expiry | Escalation alert; manual renewal link provided |
+| Certificate revoked | OCSP responder updated within 5 minutes; affected assets flagged in Risk Intelligence |
+| Certificate rotated | Rotation playbook PR opened on configured platform |
+
+## Integration with Migration Intelligence
+
+When the PQC CA is available, quantum and hybrid migration templates will default to issuing certificates via the Quanterios PQC CA rather than an external issuer. No changes to the migration workflow are required. The template parameter `issuer` will accept `quanterios-pqc` as a value alongside the existing external CA options.
+
+## Current status
+
+**Coming soon.** The PQC CA is on the roadmap following Crypto Agility API delivery. Infrastructure design and trust anchor establishment are in progress.
+
+To join the waitlist for early access:
+
+```bash
+curl -X POST https://api.quanterios.com/v1/waitlist \
+  -H "Content-Type: application/json" \
+  -d '{
+    "product": "pqc-ca",
+    "email": "you@yourcompany.com",
+    "company": "Your Company"
+  }'
+```
+
+Design partners who need PQC certificate issuance before general availability are encouraged to contact the Quanterios team. Early partners will help shape the CA policy, certificate profile, and ACME integration requirements.
