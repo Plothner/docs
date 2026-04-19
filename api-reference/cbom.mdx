@@ -1,0 +1,748 @@
+---
+title: "CBOM API"
+description: "Create, list, update, and delete cryptographic assets in your Cryptographic Bill of Materials."
+---
+
+<Info>
+  All CBOM endpoints require both `X-Tenant-Id` and `X-API-Key` headers. See [Authentication](/api-reference/authentication) for details.
+</Info>
+
+<Tabs>
+  <Tab title="Assets">
+
+    ## Create asset
+
+    `POST /cbom/assets`
+
+    Register a new cryptographic asset in your CBOM. Returns the full asset object including the server-assigned UUID.
+
+    ### Request body
+
+    <ParamField body="asset_type" type="string" required>
+      The kind of cryptographic asset. One of: `tls_cert`, `cloud_key`, `ssh_key`, `code_crypto_call`.
+    </ParamField>
+
+    <ParamField body="algorithm" type="string" required>
+      The cryptographic algorithm in use. Examples: `RSA-2048`, `ECDSA-P256`, `AES-256-GCM`, `Kyber-768`.
+    </ParamField>
+
+    <ParamField body="key_size" type="integer">
+      Key length in bits. Required for asymmetric assets; omit for algorithm-defined sizes such as AES-256.
+    </ParamField>
+
+    <ParamField body="location" type="string" required>
+      Human-readable location identifier. Examples: `us-east-1/acm/arn:aws:...`, `github/acme/payments/src/crypto.py:42`.
+    </ParamField>
+
+    <ParamField body="exposure" type="string" required>
+      Network exposure of the asset. One of: `public`, `internal`, `restricted`.
+    </ParamField>
+
+    <ParamField body="sensitivity" type="string" required>
+      Data sensitivity classification. One of: `high`, `medium`, `low`.
+    </ParamField>
+
+    <ParamField body="discovered_by" type="string">
+      Connector or user that discovered this asset. Examples: `aws-acm-connector`, `manual`, `ci-scanner`.
+    </ParamField>
+
+    <ParamField body="regulatory_tags" type="array">
+      List of applicable regulatory framework IDs. Example: `["pci_dss_4", "hipaa"]`.
+    </ParamField>
+
+    <ParamField body="metadata" type="object">
+      Arbitrary key-value pairs. Useful for storing connector-specific fields such as ARN, certificate serial, or pipeline run ID.
+    </ParamField>
+
+    ### Response
+
+    Returns `201 Created` with the full asset object.
+
+    <ResponseField name="id" type="string">
+      Server-assigned UUID for the asset.
+    </ResponseField>
+
+    <ResponseField name="tenant_id" type="string">
+      UUID of the tenant that owns this asset.
+    </ResponseField>
+
+    <ResponseField name="asset_type" type="string">
+      The asset type provided on creation.
+    </ResponseField>
+
+    <ResponseField name="algorithm" type="string">
+      Algorithm string as submitted.
+    </ResponseField>
+
+    <ResponseField name="key_size" type="integer">
+      Key length in bits, or `null` if not applicable.
+    </ResponseField>
+
+    <ResponseField name="location" type="string">
+      Location identifier.
+    </ResponseField>
+
+    <ResponseField name="exposure" type="string">
+      Exposure level.
+    </ResponseField>
+
+    <ResponseField name="sensitivity" type="string">
+      Sensitivity classification.
+    </ResponseField>
+
+    <ResponseField name="discovered_by" type="string">
+      Source connector or user.
+    </ResponseField>
+
+    <ResponseField name="regulatory_tags" type="array">
+      Regulatory framework IDs attached to this asset.
+    </ResponseField>
+
+    <ResponseField name="metadata" type="object">
+      Arbitrary metadata as submitted.
+    </ResponseField>
+
+    <ResponseField name="status" type="string">
+      Lifecycle status. One of: `active`, `expired`, `revoked`, `pending_rotation`.
+    </ResponseField>
+
+    <ResponseField name="created_at" type="string">
+      ISO 8601 timestamp of creation.
+    </ResponseField>
+
+    <ResponseField name="updated_at" type="string">
+      ISO 8601 timestamp of last update.
+    </ResponseField>
+
+    <CodeGroup>
+
+    ```bash cURL
+    curl -X POST "https://api.quanterios.com/cbom/assets" \
+      -H "X-Tenant-Id: 3f8a1c2d-0000-4b5e-9f7a-abc123def456" \
+      -H "X-API-Key: qk_live_xxxxxxxxxxxxxxxxxxxxxx" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "asset_type": "tls_cert",
+        "algorithm": "RSA-2048",
+        "key_size": 2048,
+        "location": "us-east-1/acm/arn:aws:acm:us-east-1:123456789012:certificate/abc",
+        "exposure": "public",
+        "sensitivity": "high",
+        "discovered_by": "aws-acm-connector",
+        "regulatory_tags": ["pci_dss_4", "hipaa"],
+        "metadata": {
+          "arn": "arn:aws:acm:us-east-1:123456789012:certificate/abc",
+          "domain": "api.acme.com"
+        }
+      }'
+    ```
+
+    ```json Response
+    {
+      "id": "9b2e4f7a-1234-4abc-8def-000011112222",
+      "tenant_id": "3f8a1c2d-0000-4b5e-9f7a-abc123def456",
+      "asset_type": "tls_cert",
+      "algorithm": "RSA-2048",
+      "key_size": 2048,
+      "location": "us-east-1/acm/arn:aws:acm:us-east-1:123456789012:certificate/abc",
+      "exposure": "public",
+      "sensitivity": "high",
+      "discovered_by": "aws-acm-connector",
+      "regulatory_tags": ["pci_dss_4", "hipaa"],
+      "metadata": {
+        "arn": "arn:aws:acm:us-east-1:123456789012:certificate/abc",
+        "domain": "api.acme.com"
+      },
+      "status": "active",
+      "created_at": "2026-04-18T09:00:00Z",
+      "updated_at": "2026-04-18T09:00:00Z"
+    }
+    ```
+
+    </CodeGroup>
+
+    ---
+
+    ## List assets
+
+    `GET /cbom/assets`
+
+    Return a paginated list of cryptographic assets. Supports filtering by type, algorithm, score range, status, exposure, and discovery source.
+
+    ### Query parameters
+
+    <ParamField query="asset_type" type="string">
+      Filter by asset type. One of: `tls_cert`, `cloud_key`, `ssh_key`, `code_crypto_call`.
+    </ParamField>
+
+    <ParamField query="algorithm" type="string">
+      Filter by algorithm string. Partial match is supported (e.g., `RSA` matches `RSA-2048` and `RSA-4096`).
+    </ParamField>
+
+    <ParamField query="min_score" type="integer">
+      Return only assets with an HNDL overall score greater than or equal to this value (0-100).
+    </ParamField>
+
+    <ParamField query="max_score" type="integer">
+      Return only assets with an HNDL overall score less than or equal to this value (0-100).
+    </ParamField>
+
+    <ParamField query="status" type="string">
+      Filter by lifecycle status. One of: `active`, `expired`, `revoked`, `pending_rotation`.
+    </ParamField>
+
+    <ParamField query="exposure" type="string">
+      Filter by exposure level. One of: `public`, `internal`, `restricted`.
+    </ParamField>
+
+    <ParamField query="discovered_by" type="string">
+      Filter by the connector or user that discovered the asset.
+    </ParamField>
+
+    <ParamField query="limit" type="integer" default="100">
+      Maximum number of results to return. Range: 1-1000.
+    </ParamField>
+
+    <ParamField query="offset" type="integer" default="0">
+      Number of results to skip for pagination.
+    </ParamField>
+
+    <CodeGroup>
+
+    ```bash cURL
+    curl -X GET "https://api.quanterios.com/cbom/assets?asset_type=tls_cert&exposure=public&limit=25&offset=0" \
+      -H "X-Tenant-Id: 3f8a1c2d-0000-4b5e-9f7a-abc123def456" \
+      -H "X-API-Key: qk_live_xxxxxxxxxxxxxxxxxxxxxx"
+    ```
+
+    ```json Response
+    {
+      "total": 142,
+      "limit": 25,
+      "offset": 0,
+      "items": [
+        {
+          "id": "9b2e4f7a-1234-4abc-8def-000011112222",
+          "asset_type": "tls_cert",
+          "algorithm": "RSA-2048",
+          "key_size": 2048,
+          "location": "us-east-1/acm/arn:aws:acm:us-east-1:123456789012:certificate/abc",
+          "exposure": "public",
+          "sensitivity": "high",
+          "status": "active",
+          "created_at": "2026-04-18T09:00:00Z",
+          "updated_at": "2026-04-18T09:00:00Z"
+        }
+      ]
+    }
+    ```
+
+    </CodeGroup>
+
+    ---
+
+    ## Get asset
+
+    `GET /cbom/assets/{asset_id}`
+
+    Retrieve a single asset by its UUID.
+
+    ### Path parameters
+
+    <ParamField path="asset_id" type="string" required>
+      UUID of the asset to retrieve.
+    </ParamField>
+
+    <CodeGroup>
+
+    ```bash cURL
+    curl -X GET "https://api.quanterios.com/cbom/assets/9b2e4f7a-1234-4abc-8def-000011112222" \
+      -H "X-Tenant-Id: 3f8a1c2d-0000-4b5e-9f7a-abc123def456" \
+      -H "X-API-Key: qk_live_xxxxxxxxxxxxxxxxxxxxxx"
+    ```
+
+    ```json Response
+    {
+      "id": "9b2e4f7a-1234-4abc-8def-000011112222",
+      "tenant_id": "3f8a1c2d-0000-4b5e-9f7a-abc123def456",
+      "asset_type": "tls_cert",
+      "algorithm": "RSA-2048",
+      "key_size": 2048,
+      "location": "us-east-1/acm/arn:aws:acm:us-east-1:123456789012:certificate/abc",
+      "exposure": "public",
+      "sensitivity": "high",
+      "discovered_by": "aws-acm-connector",
+      "regulatory_tags": ["pci_dss_4", "hipaa"],
+      "metadata": {
+        "arn": "arn:aws:acm:us-east-1:123456789012:certificate/abc",
+        "domain": "api.acme.com"
+      },
+      "status": "active",
+      "created_at": "2026-04-18T09:00:00Z",
+      "updated_at": "2026-04-18T09:00:00Z"
+    }
+    ```
+
+    </CodeGroup>
+
+    ---
+
+    ## Update asset
+
+    `PATCH /cbom/assets/{asset_id}`
+
+    Partially update one or more fields on an existing asset. Only the fields provided in the request body are modified.
+
+    ### Path parameters
+
+    <ParamField path="asset_id" type="string" required>
+      UUID of the asset to update.
+    </ParamField>
+
+    ### Request body
+
+    Send any subset of the fields accepted by `POST /cbom/assets`. All fields are optional.
+
+    <ParamField body="status" type="string">
+      Update the lifecycle status. One of: `active`, `expired`, `revoked`, `pending_rotation`.
+    </ParamField>
+
+    <ParamField body="sensitivity" type="string">
+      Updated sensitivity classification.
+    </ParamField>
+
+    <ParamField body="regulatory_tags" type="array">
+      Replaces the full regulatory tags array.
+    </ParamField>
+
+    <ParamField body="metadata" type="object">
+      Deep-merges with existing metadata. To remove a key, set it to `null`.
+    </ParamField>
+
+    <CodeGroup>
+
+    ```bash cURL
+    curl -X PATCH "https://api.quanterios.com/cbom/assets/9b2e4f7a-1234-4abc-8def-000011112222" \
+      -H "X-Tenant-Id: 3f8a1c2d-0000-4b5e-9f7a-abc123def456" \
+      -H "X-API-Key: qk_live_xxxxxxxxxxxxxxxxxxxxxx" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "status": "pending_rotation",
+        "regulatory_tags": ["pci_dss_4", "hipaa", "nist_sp_800_131a"]
+      }'
+    ```
+
+    ```json Response
+    {
+      "id": "9b2e4f7a-1234-4abc-8def-000011112222",
+      "status": "pending_rotation",
+      "regulatory_tags": ["pci_dss_4", "hipaa", "nist_sp_800_131a"],
+      "updated_at": "2026-04-18T10:15:00Z"
+    }
+    ```
+
+    </CodeGroup>
+
+    ---
+
+    ## Delete asset
+
+    `DELETE /cbom/assets/{asset_id}`
+
+    Permanently remove an asset and all associated scores from your CBOM.
+
+    <Warning>
+      Deletion is irreversible. All historical HNDL scores for this asset are also deleted. If you need to retain history, set `status` to `revoked` using the PATCH endpoint instead.
+    </Warning>
+
+    ### Path parameters
+
+    <ParamField path="asset_id" type="string" required>
+      UUID of the asset to delete.
+    </ParamField>
+
+    Returns `204 No Content` on success.
+
+    ```bash cURL
+    curl -X DELETE "https://api.quanterios.com/cbom/assets/9b2e4f7a-1234-4abc-8def-000011112222" \
+      -H "X-Tenant-Id: 3f8a1c2d-0000-4b5e-9f7a-abc123def456" \
+      -H "X-API-Key: qk_live_xxxxxxxxxxxxxxxxxxxxxx"
+    ```
+
+  </Tab>
+
+  <Tab title="Bulk">
+
+    ## Bulk upsert assets
+
+    `POST /cbom/assets/bulk`
+
+    Create or update multiple assets in a single request. Each item is matched by `location` within the tenant. If an asset with the same location already exists, it is updated; otherwise a new asset is created.
+
+    <Note>
+      The bulk endpoint processes up to 1,000 assets per request. For larger imports, split into batches and use `offset`-based pagination to verify results.
+    </Note>
+
+    ### Request body
+
+    <ParamField body="assets" type="array" required>
+      Array of asset objects. Each object accepts the same fields as `POST /cbom/assets`.
+
+      <Expandable title="Asset object fields">
+        <ParamField body="asset_type" type="string" required>
+          One of: `tls_cert`, `cloud_key`, `ssh_key`, `code_crypto_call`.
+        </ParamField>
+        <ParamField body="algorithm" type="string" required>
+          Cryptographic algorithm string.
+        </ParamField>
+        <ParamField body="key_size" type="integer">
+          Key length in bits.
+        </ParamField>
+        <ParamField body="location" type="string" required>
+          Unique location identifier. Used as the upsert key.
+        </ParamField>
+        <ParamField body="exposure" type="string" required>
+          One of: `public`, `internal`, `restricted`.
+        </ParamField>
+        <ParamField body="sensitivity" type="string" required>
+          One of: `high`, `medium`, `low`.
+        </ParamField>
+        <ParamField body="discovered_by" type="string">
+          Connector or user that discovered this asset.
+        </ParamField>
+        <ParamField body="regulatory_tags" type="array">
+          Applicable regulatory framework IDs.
+        </ParamField>
+        <ParamField body="metadata" type="object">
+          Arbitrary key-value metadata.
+        </ParamField>
+      </Expandable>
+    </ParamField>
+
+    ### Response
+
+    Returns `200 OK` with a summary of the operation.
+
+    <ResponseField name="created" type="integer">
+      Number of new assets created.
+    </ResponseField>
+
+    <ResponseField name="updated" type="integer">
+      Number of existing assets updated.
+    </ResponseField>
+
+    <ResponseField name="errors" type="array">
+      List of per-item errors. Each entry contains `index` (zero-based position in the input array), `location`, and `message`.
+
+      <Expandable title="Error object fields">
+        <ResponseField name="index" type="integer">
+          Zero-based position of the failing item in the input array.
+        </ResponseField>
+        <ResponseField name="location" type="string">
+          The `location` value from the failing item.
+        </ResponseField>
+        <ResponseField name="message" type="string">
+          Human-readable description of the validation or persistence error.
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+
+    <CodeGroup>
+
+    ```bash cURL
+    curl -X POST "https://api.quanterios.com/cbom/assets/bulk" \
+      -H "X-Tenant-Id: 3f8a1c2d-0000-4b5e-9f7a-abc123def456" \
+      -H "X-API-Key: qk_live_xxxxxxxxxxxxxxxxxxxxxx" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "assets": [
+          {
+            "asset_type": "tls_cert",
+            "algorithm": "RSA-2048",
+            "key_size": 2048,
+            "location": "us-east-1/acm/cert-001",
+            "exposure": "public",
+            "sensitivity": "high",
+            "discovered_by": "aws-acm-connector"
+          },
+          {
+            "asset_type": "cloud_key",
+            "algorithm": "AES-256",
+            "location": "azure/keyvault/prod-vault/mykey",
+            "exposure": "internal",
+            "sensitivity": "high",
+            "discovered_by": "azure-keyvault-connector"
+          }
+        ]
+      }'
+    ```
+
+    ```json Response
+    {
+      "created": 1,
+      "updated": 1,
+      "errors": []
+    }
+    ```
+
+    </CodeGroup>
+
+  </Tab>
+
+  <Tab title="Scores">
+
+    ## Ingest HNDL score
+
+    `POST /cbom/scores`
+
+    Persist a pre-computed HNDL risk score for an asset. Use this endpoint when scores are calculated outside Quanterios (for example, by a custom pipeline) and need to be recorded against an existing CBOM asset.
+
+    <Tip>
+      If you want Quanterios to compute and store the score automatically, call `GET /api/v1/assets/{asset_id}/hndl` instead. That endpoint triggers the scoring engine and persists the result in one step.
+    </Tip>
+
+    ### Request body
+
+    <ParamField body="asset_id" type="string" required>
+      UUID of the CBOM asset this score belongs to.
+    </ParamField>
+
+    <ParamField body="overall" type="integer" required>
+      Composite risk score from 0 (no risk) to 100 (maximum risk).
+    </ParamField>
+
+    <ParamField body="data_sensitivity" type="integer" required>
+      Sub-score for data sensitivity. Range: 0 to 25.
+    </ParamField>
+
+    <ParamField body="quantum_timeline" type="integer" required>
+      Sub-score for quantum threat timeline. Range: 0 to 25.
+    </ParamField>
+
+    <ParamField body="exposure_surface" type="integer" required>
+      Sub-score for network exposure. Range: 0 to 25.
+    </ParamField>
+
+    <ParamField body="regulatory" type="integer" required>
+      Sub-score for regulatory compliance pressure. Range: 0 to 25.
+    </ParamField>
+
+    ### Response
+
+    Returns `201 Created` with the persisted score object.
+
+    <ResponseField name="id" type="string">
+      UUID of the newly created score record.
+    </ResponseField>
+
+    <ResponseField name="asset_id" type="string">
+      UUID of the associated asset.
+    </ResponseField>
+
+    <ResponseField name="overall" type="integer">
+      Composite risk score (0-100).
+    </ResponseField>
+
+    <ResponseField name="data_sensitivity" type="integer">
+      Data sensitivity sub-score (0-25).
+    </ResponseField>
+
+    <ResponseField name="quantum_timeline" type="integer">
+      Quantum timeline sub-score (0-25).
+    </ResponseField>
+
+    <ResponseField name="exposure_surface" type="integer">
+      Exposure surface sub-score (0-25).
+    </ResponseField>
+
+    <ResponseField name="regulatory" type="integer">
+      Regulatory sub-score (0-25).
+    </ResponseField>
+
+    <ResponseField name="severity" type="string">
+      Derived severity label. One of: `critical`, `high`, `medium`, `low`, `informational`.
+    </ResponseField>
+
+    <ResponseField name="created_at" type="string">
+      ISO 8601 timestamp when the score was persisted.
+    </ResponseField>
+
+    <CodeGroup>
+
+    ```bash cURL
+    curl -X POST "https://api.quanterios.com/cbom/scores" \
+      -H "X-Tenant-Id: 3f8a1c2d-0000-4b5e-9f7a-abc123def456" \
+      -H "X-API-Key: qk_live_xxxxxxxxxxxxxxxxxxxxxx" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "asset_id": "9b2e4f7a-1234-4abc-8def-000011112222",
+        "overall": 82,
+        "data_sensitivity": 22,
+        "quantum_timeline": 20,
+        "exposure_surface": 23,
+        "regulatory": 17
+      }'
+    ```
+
+    ```json Response
+    {
+      "id": "c1d2e3f4-5678-4aaa-bbbb-ccccddddeeee",
+      "asset_id": "9b2e4f7a-1234-4abc-8def-000011112222",
+      "overall": 82,
+      "data_sensitivity": 22,
+      "quantum_timeline": 20,
+      "exposure_surface": 23,
+      "regulatory": 17,
+      "severity": "critical",
+      "created_at": "2026-04-18T10:30:00Z"
+    }
+    ```
+
+    </CodeGroup>
+
+    ---
+
+    ## Get latest score
+
+    `GET /cbom/scores/{asset_id}`
+
+    Retrieve the most recently ingested HNDL score for a given asset, including severity label and the primary risk driver.
+
+    ### Path parameters
+
+    <ParamField path="asset_id" type="string" required>
+      UUID of the asset whose latest score to retrieve.
+    </ParamField>
+
+    ### Response
+
+    <ResponseField name="id" type="string">
+      UUID of the score record.
+    </ResponseField>
+
+    <ResponseField name="asset_id" type="string">
+      UUID of the associated asset.
+    </ResponseField>
+
+    <ResponseField name="overall" type="integer">
+      Composite risk score (0-100).
+    </ResponseField>
+
+    <ResponseField name="data_sensitivity" type="integer">
+      Data sensitivity sub-score (0-25).
+    </ResponseField>
+
+    <ResponseField name="quantum_timeline" type="integer">
+      Quantum timeline sub-score (0-25).
+    </ResponseField>
+
+    <ResponseField name="exposure_surface" type="integer">
+      Exposure surface sub-score (0-25).
+    </ResponseField>
+
+    <ResponseField name="regulatory" type="integer">
+      Regulatory sub-score (0-25).
+    </ResponseField>
+
+    <ResponseField name="severity" type="string">
+      Derived severity label. One of: `critical`, `high`, `medium`, `low`, `informational`.
+    </ResponseField>
+
+    <ResponseField name="primary_driver" type="string">
+      The sub-dimension with the highest proportional contribution to the overall score. One of: `data_sensitivity`, `quantum_timeline`, `exposure_surface`, `regulatory`.
+    </ResponseField>
+
+    <ResponseField name="created_at" type="string">
+      ISO 8601 timestamp when this score was recorded.
+    </ResponseField>
+
+    <CodeGroup>
+
+    ```bash cURL
+    curl -X GET "https://api.quanterios.com/cbom/scores/9b2e4f7a-1234-4abc-8def-000011112222" \
+      -H "X-Tenant-Id: 3f8a1c2d-0000-4b5e-9f7a-abc123def456" \
+      -H "X-API-Key: qk_live_xxxxxxxxxxxxxxxxxxxxxx"
+    ```
+
+    ```json Response
+    {
+      "id": "c1d2e3f4-5678-4aaa-bbbb-ccccddddeeee",
+      "asset_id": "9b2e4f7a-1234-4abc-8def-000011112222",
+      "overall": 82,
+      "data_sensitivity": 22,
+      "quantum_timeline": 20,
+      "exposure_surface": 23,
+      "regulatory": 17,
+      "severity": "critical",
+      "primary_driver": "exposure_surface",
+      "created_at": "2026-04-18T10:30:00Z"
+    }
+    ```
+
+    </CodeGroup>
+
+    ---
+
+    ## Score history
+
+    `GET /cbom/assets/{asset_id}/history`
+
+    Retrieve the full scoring history for an asset, ordered from most recent to oldest. Useful for tracking risk trends over time.
+
+    ### Path parameters
+
+    <ParamField path="asset_id" type="string" required>
+      UUID of the asset whose score history to retrieve.
+    </ParamField>
+
+    ### Query parameters
+
+    <ParamField query="limit" type="integer" default="100">
+      Maximum number of historical score records to return. Range: 1-1000.
+    </ParamField>
+
+    ### Response
+
+    Returns an array of score objects. Each object contains the same fields as the latest-score response, plus a `created_at` timestamp.
+
+    <CodeGroup>
+
+    ```bash cURL
+    curl -X GET "https://api.quanterios.com/cbom/assets/9b2e4f7a-1234-4abc-8def-000011112222/history?limit=10" \
+      -H "X-Tenant-Id: 3f8a1c2d-0000-4b5e-9f7a-abc123def456" \
+      -H "X-API-Key: qk_live_xxxxxxxxxxxxxxxxxxxxxx"
+    ```
+
+    ```json Response
+    [
+      {
+        "id": "c1d2e3f4-5678-4aaa-bbbb-ccccddddeeee",
+        "asset_id": "9b2e4f7a-1234-4abc-8def-000011112222",
+        "overall": 82,
+        "data_sensitivity": 22,
+        "quantum_timeline": 20,
+        "exposure_surface": 23,
+        "regulatory": 17,
+        "severity": "critical",
+        "primary_driver": "exposure_surface",
+        "created_at": "2026-04-18T10:30:00Z"
+      },
+      {
+        "id": "a9b8c7d6-0000-4fff-9999-111122223333",
+        "asset_id": "9b2e4f7a-1234-4abc-8def-000011112222",
+        "overall": 78,
+        "data_sensitivity": 21,
+        "quantum_timeline": 19,
+        "exposure_surface": 22,
+        "regulatory": 16,
+        "severity": "high",
+        "primary_driver": "exposure_surface",
+        "created_at": "2026-04-10T08:00:00Z"
+      }
+    ]
+    ```
+
+    </CodeGroup>
+
+  </Tab>
+</Tabs>
