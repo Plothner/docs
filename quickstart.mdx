@@ -1,138 +1,143 @@
 ---
 title: "Quickstart"
-description: "Install the Quanterios Crypto Debt Firewall in your GitHub repository in under five minutes."
+description: "Get started with Quanterios in 10 minutes. Assess your cryptographic risk, plan a migration, and prevent new crypto debt."
 ---
 
-The fastest way to start with Quanterios is the Crypto Debt Firewall. Add a single GitHub Action to your repository and every pull request will be scanned for cryptographic anti-patterns before it merges. No infrastructure to provision, no agent to install.
+# Quickstart
+
+Quanterios covers three stages: **assess** your cryptographic risk, **migrate** to stronger algorithms, and **prevent** new crypto debt. This guide walks through each stage.
 
 <Info>
-  This guide covers GitHub. If you use GitLab or Bitbucket, the setup is equivalent but uses platform-specific CI syntax. See the [GitLab integration guide](/customer/integrations/gitlab) and the [Bitbucket integration guide](/customer/integrations/bitbucket) for step-by-step instructions.
+  You can start with any stage. Most enterprise customers begin with assessment. Developers often start with prevention (the free Firewall).
 </Info>
 
-## Prerequisites
+## 1. Assess Your Crypto Risk
 
-Before you begin, confirm you have the following:
-
-- A GitHub repository where you want to enable scanning
-- Admin access to the repository (required to add Actions and configure secrets)
-
-## Install the Firewall
+Connect your cloud infrastructure and discover every cryptographic asset.
 
 <Steps>
-  <Step title="Add the GitHub Action">
-    Create the file `.github/workflows/quanterios-firewall.yml` in your repository with the following content. Commit it directly to the default branch so it takes effect immediately for all subsequent pull requests.
+  <Step title="Connect Your Cloud Account">
+    Use the CBOM API to register your cloud assets. For AWS, provide an IAM role ARN with read-only access:
 
-    ```yaml .github/workflows/quanterios-firewall.yml
-    name: Quanterios Crypto Debt Firewall
-
-    on:
-      pull_request:
-        branches:
-          - main
-          - master
-
-    permissions:
-      contents: read
-      pull-requests: write
-
-    jobs:
-      firewall:
-        name: Scan for cryptographic anti-patterns
-        runs-on: ubuntu-latest
-
-        steps:
-          - name: Checkout repository
-            uses: actions/checkout@v4
-            with:
-              fetch-depth: 0
-
-          - name: Run Quanterios Firewall
-            uses: Plothner/firewall-action@v1
-            with:
-              backend_url: https://api.quanterios.com
-              github_token: ${{ secrets.GITHUB_TOKEN }}
+    ```bash
+    curl -X POST https://api.quanterios.com/cbom/assets \
+      -H "Content-Type: application/json" \
+      -H "X-Tenant-Id: YOUR_TENANT_ID" \
+      -d '{
+        "asset_type": "tls_cert",
+        "algorithm": "RSA-2048",
+        "key_size": 2048,
+        "location": "arn:aws:acm:us-east-1:123456789:certificate/abc",
+        "exposure": "public",
+        "sensitivity": "high",
+        "discovered_by": "manual"
+      }'
     ```
-
-    The `GITHUB_TOKEN` is provided automatically by GitHub Actions. No additional secrets are required to get started.
   </Step>
+  <Step title="View Your HNDL Risk Score">
+    Every asset gets an AI-powered risk score from 0 to 100, measuring the Harvest Now, Decrypt Later threat:
 
-  <Step title="Open a Pull Request">
-    With the workflow committed, open any pull request against your default branch. The Quanterios Firewall job will run automatically as part of the pull request checks.
-
-    To see a finding immediately, open a pull request that includes code like the following. The scanner will flag the RSA key size and post a finding.
-
-    ```python
-    from cryptography.hazmat.primitives.asymmetric import rsa
-
-    # This will be flagged: RSA-1024 is below the minimum recommended key size
-    private_key = rsa.generate_private_key(
-        public_exponent=65537,
-        key_size=1024,
-    )
+    ```bash
+    curl https://api.quanterios.com/api/v1/assets/ASSET_ID/hndl \
+      -H "X-Tenant-Id: YOUR_TENANT_ID"
     ```
 
-    The Action status will appear in the pull request checks panel alongside your existing CI jobs. A passing check means no findings above the confidence threshold were detected. A failing check means at least one finding was posted for review.
+    The response includes four dimension scores (data sensitivity, quantum timeline, exposure surface, regulatory) and an AI-generated briefing explaining the risk.
   </Step>
+  <Step title="Check Compliance">
+    See how your assets map against 13 regulatory frameworks:
 
-  <Step title="Review Findings">
-    When the scanner detects a cryptographic anti-pattern, it posts a structured review comment directly on the pull request. The comment contains two sections.
-
-    **Semgrep findings** list each matched pattern with the file path, line number, rule ID, and a description of the risk. These are deterministic matches based on the Quanterios rule set.
-
-    **AI auditor analysis** interprets the findings in context. The LLM auditor reads the surrounding code, assesses whether the pattern is a genuine risk or a false positive, explains the HNDL relevance of each finding, and recommends the specific remediation step. Each finding includes a confidence score between 0.0 and 1.0.
-
-    ```
-    ## Quanterios Crypto Debt Firewall
-
-    ### Semgrep Findings
-
-    | Severity | File | Line | Rule | Description |
-    |---|---|---|---|---|
-    | HIGH | src/auth/keys.py | 12 | CDF-RSA-001 | RSA key size below 2048 bits |
-
-    ### AI Auditor Analysis
-
-    **Finding: RSA-1024 key generation (confidence: 0.91)**
-
-    This key is used to sign authentication tokens issued to external clients.
-    RSA-1024 has been considered broken since 2010 and is not resistant to
-    classical attacks, let alone quantum attacks. Migrate to RSA-4096 or,
-    preferably, to an ML-DSA-based signing scheme. A migration playbook for
-    this pattern is available in Migration Intelligence.
+    ```bash
+    curl https://api.quanterios.com/api/v1/assets/ASSET_ID/compliance \
+      -H "X-Tenant-Id: YOUR_TENANT_ID"
     ```
   </Step>
 </Steps>
 
-## What Happens Next
+## 2. Migrate to Stronger Algorithms
 
-The firewall uses a confidence threshold to decide how findings are surfaced.
+Preview a migration plan with breakage prediction:
 
-| Confidence | Action |
-|---|---|
-| High (>= 0.6) | Finding is posted as a pull request review comment and the check fails |
-| Low (< 0.6) | Finding is recorded as a training signal and the check passes silently |
+<Steps>
+  <Step title="Preview the Migration">
+    ```bash
+    curl -X POST https://api.quanterios.com/api/v1/migrate/preview \
+      -H "Content-Type: application/json" \
+      -H "X-Tenant-Id: YOUR_TENANT_ID" \
+      -d '{
+        "asset": {
+          "algorithm": "RSA-2048",
+          "asset_type": "tls_cert",
+          "location": "arn:aws:acm:us-east-1:123456789:certificate/abc"
+        },
+        "cloud_provider": "aws"
+      }'
+    ```
 
-Low-confidence findings are not discarded. They are used to improve the AI auditor model over time. As the model improves, previously ambiguous patterns may cross the threshold and become active findings.
+    The response includes the target algorithm, breakage probability, confidence level, and a business impact assessment.
+  </Step>
+  <Step title="Generate the Playbook">
+    Create a migration plan that produces runnable Terraform, Ansible, or Helm code:
+
+    ```bash
+    curl -X POST https://api.quanterios.com/api/v1/assets/ASSET_ID/migrate/plan \
+      -H "Content-Type: application/json" \
+      -H "X-Tenant-Id: YOUR_TENANT_ID" \
+      -d '{"delivery": "zip"}'
+    ```
+
+    Download the ZIP bundle containing all migration steps, rollback procedures, and monitoring configuration.
+  </Step>
+</Steps>
+
+## 3. Prevent New Crypto Debt
+
+Install the Crypto Debt Firewall to catch cryptographic anti-patterns in every pull request:
+
+<Steps>
+  <Step title="Add the GitHub Action">
+    Create `.github/workflows/quanterios-firewall.yml`:
+
+    ```yaml
+    name: Quanterios Crypto Debt Firewall
+    on:
+      pull_request:
+        types: [opened, synchronize]
+    permissions:
+      contents: read
+      pull-requests: write
+    jobs:
+      scan:
+        runs-on: ubuntu-latest
+        steps:
+          - uses: actions/checkout@v4
+            with:
+              fetch-depth: 0
+          - uses: Plothner/firewall-action@v1
+            with:
+              backend_url: https://api.quanterios.com
+              github_token: ${{ secrets.GITHUB_TOKEN }}
+    ```
+  </Step>
+  <Step title="Open a Pull Request">
+    The Firewall scans automatically and posts findings as a PR comment, combining Semgrep rules with AI-powered analysis.
+  </Step>
+</Steps>
 
 <Tip>
-  Developers can leave a thumbs up or thumbs down reaction on any firewall comment to provide feedback directly from GitHub. Thumbs up confirms the finding is valid. Thumbs down marks it as a false positive. Both signals are ingested by Quanterios and used to refine the confidence model for your codebase specifically.
+  For GitLab or Bitbucket setup, see the [Prevention](/firewall/overview) section.
 </Tip>
 
 ## Next Steps
 
-<CardGroup cols={2}>
-  <Card
-    title="Understanding Findings"
-    icon="magnifying-glass"
-    href="/customer/findings"
-  >
-    Learn how to interpret firewall findings, triage severity levels, and configure suppression rules for known false positives.
+<CardGroup cols={3}>
+  <Card title="Assessment" icon="magnifying-glass-chart" href="/risk-intelligence/overview">
+    Deep dive into risk scoring and compliance.
   </Card>
-  <Card
-    title="AI Auditor"
-    icon="wand-magic-sparkles"
-    href="/customer/ai-auditor"
-  >
-    Understand how the LLM-powered AI auditor works, how confidence scores are calculated, and how developer feedback improves accuracy over time.
+  <Card title="Migration" icon="arrow-right-arrow-left" href="/migration/overview">
+    Explore 29 migration paths and hybrid mode.
+  </Card>
+  <Card title="Prevention" icon="shield-halved" href="/firewall/overview">
+    Configure the Firewall for your team.
   </Card>
 </CardGroup>

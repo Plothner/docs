@@ -27,20 +27,7 @@
             ]
           },
           {
-            "group": "Crypto Debt Firewall",
-            "pages": [
-              "firewall/overview",
-              "firewall/github",
-              "firewall/gitlab",
-              "firewall/bitbucket",
-              "firewall/findings",
-              "firewall/ai-auditor",
-              "firewall/feedback",
-              "firewall/pricing"
-            ]
-          },
-          {
-            "group": "Crypto Risk Intelligence",
+            "group": "Assessment",
             "pages": [
               "risk-intelligence/overview",
               "risk-intelligence/discovery",
@@ -56,7 +43,7 @@
             ]
           },
           {
-            "group": "Migration Intelligence",
+            "group": "Migration",
             "pages": [
               "migration/overview",
               "migration/paths",
@@ -66,6 +53,19 @@
               "migration/breakage-prediction",
               "migration/pr-delivery",
               "migration/cost-estimation"
+            ]
+          },
+          {
+            "group": "Prevention",
+            "pages": [
+              "firewall/overview",
+              "firewall/github",
+              "firewall/gitlab",
+              "firewall/bitbucket",
+              "firewall/findings",
+              "firewall/ai-auditor",
+              "firewall/feedback",
+              "firewall/pricing"
             ]
           },
           {
