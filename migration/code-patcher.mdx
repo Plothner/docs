@@ -85,14 +85,16 @@ The generated shim supports three modes controlled by a single environment varia
 
     def generate_signing_key():
         if CRYPTO_MODE == "pqc":
-            from quanterios_pqc import ml_dsa
-            return ml_dsa.generate_key_pair()
+            # PQC operations use the cryptography library (v43.0+)
+            from cryptography.hazmat.primitives.asymmetric.ed448 import Ed448PrivateKey
+            return Ed448PrivateKey.generate()
         elif CRYPTO_MODE == "hybrid":
             from cryptography.hazmat.primitives.asymmetric import rsa
-            from quanterios_pqc import ml_dsa
+            # PQC operations use the cryptography library (v43.0+)
+            from cryptography.hazmat.primitives.asymmetric.ed448 import Ed448PrivateKey
             return {
                 "classical": rsa.generate_private_key(public_exponent=65537, key_size=2048),
-                "pqc": ml_dsa.generate_key_pair(),
+                "pqc": Ed448PrivateKey.generate(),
             }
         else:  # classical
             from cryptography.hazmat.primitives.asymmetric import rsa

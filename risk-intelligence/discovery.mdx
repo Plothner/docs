@@ -1,6 +1,6 @@
 ---
 title: "Asset Discovery"
-description: "Agentless, API-based scanning across 40 connectors. Quanterios reads your infrastructure using read-only credentials and builds a complete cryptographic inventory without touching production workloads."
+description: "Agentless, API-based scanning across 38 connectors. Quanterios reads your infrastructure using read-only credentials and builds a complete cryptographic inventory without touching production workloads."
 ---
 
 <Info>
@@ -21,8 +21,8 @@ Discovery runs on first connection, then on a configurable schedule (default: ev
 | [Azure](/risk-intelligence/azure) | 8 | Key Vault keys and certs, TLS listeners, app registrations, database encryption |
 | [GCP](/risk-intelligence/gcp) | 8 | KMS keys, managed certificates, cluster certs, CMEK configs |
 | [Kubernetes](/risk-intelligence/kubernetes) | 4 | TLS Secrets, Ingress TLS, service mesh mTLS, cert-manager issuers |
-| [On-Premises](/risk-intelligence/on-prem) | 8 | PKI certificates, LDAP stores, code crypto calls, database TLS |
-| **Total** | **40** | |
+| [On-Premises](/risk-intelligence/on-prem) | 6 | PKI certificates, LDAP stores, code crypto calls, database TLS |
+| **Total** | **38** | |
 
 <CardGroup cols={2}>
   <Card title="AWS" icon="aws" href="/risk-intelligence/aws">
@@ -38,7 +38,7 @@ Discovery runs on first connection, then on a configurable schedule (default: ev
     4 connectors covering TLS Secrets, Ingress Controllers, Service Mesh mTLS, and cert-manager.
   </Card>
   <Card title="On-Premises" icon="server" href="/risk-intelligence/on-prem">
-    8 connectors covering Venafi, EJBCA, LDAP, Semgrep code scanning, MySQL, and PostgreSQL.
+    6 connectors covering Venafi, EJBCA, LDAP, Semgrep code scanning, MySQL, and PostgreSQL.
   </Card>
 </CardGroup>
 

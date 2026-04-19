@@ -23,6 +23,7 @@ Connect your cloud infrastructure and discover every cryptographic asset.
     curl -X POST https://api.quanterios.com/cbom/assets \
       -H "Content-Type: application/json" \
       -H "X-Tenant-Id: YOUR_TENANT_ID" \
+      -H "X-API-Key: YOUR_API_KEY" \
       -d '{
         "asset_type": "tls_cert",
         "algorithm": "RSA-2048",
@@ -33,13 +34,18 @@ Connect your cloud infrastructure and discover every cryptographic asset.
         "discovered_by": "manual"
       }'
     ```
+
+<Note>
+  Replace `YOUR_TENANT_ID` and `YOUR_API_KEY` with your actual credentials. You can find these in your Quanterios account settings.
+</Note>
   </Step>
   <Step title="View Your HNDL Risk Score">
     Every asset gets an AI-powered risk score from 0 to 100, measuring the Harvest Now, Decrypt Later threat:
 
     ```bash
     curl https://api.quanterios.com/api/v1/assets/ASSET_ID/hndl \
-      -H "X-Tenant-Id: YOUR_TENANT_ID"
+      -H "X-Tenant-Id: YOUR_TENANT_ID" \
+      -H "X-API-Key: YOUR_API_KEY"
     ```
 
     The response includes four dimension scores (data sensitivity, quantum timeline, exposure surface, regulatory) and an AI-generated briefing explaining the risk.
@@ -49,7 +55,8 @@ Connect your cloud infrastructure and discover every cryptographic asset.
 
     ```bash
     curl https://api.quanterios.com/api/v1/assets/ASSET_ID/compliance \
-      -H "X-Tenant-Id: YOUR_TENANT_ID"
+      -H "X-Tenant-Id: YOUR_TENANT_ID" \
+      -H "X-API-Key: YOUR_API_KEY"
     ```
   </Step>
 </Steps>
@@ -64,6 +71,7 @@ Preview a migration plan with breakage prediction:
     curl -X POST https://api.quanterios.com/api/v1/migrate/preview \
       -H "Content-Type: application/json" \
       -H "X-Tenant-Id: YOUR_TENANT_ID" \
+      -H "X-API-Key: YOUR_API_KEY" \
       -d '{
         "asset": {
           "algorithm": "RSA-2048",
@@ -83,6 +91,7 @@ Preview a migration plan with breakage prediction:
     curl -X POST https://api.quanterios.com/api/v1/assets/ASSET_ID/migrate/plan \
       -H "Content-Type: application/json" \
       -H "X-Tenant-Id: YOUR_TENANT_ID" \
+      -H "X-API-Key: YOUR_API_KEY" \
       -d '{"delivery": "zip"}'
     ```
 
