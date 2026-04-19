@@ -1,0 +1,207 @@
+---
+title: "Webhooks"
+description: "Connect Quanterios to your repositories so that pull-request events automatically trigger cryptographic scans and status checks."
+---
+
+Quanterios webhooks let your source-control platform push events directly to the Firewall API the moment a pull request is opened, updated, or commented on. No polling required: Quanterios receives the event, validates the signature, and immediately queues a scan or posts a status check back to your repository.
+
+<Warning>
+  Always verify webhook signatures in production. Skipping signature verification exposes your pipeline to spoofed payloads and unauthorized scan triggers. See the Signature Verification section below for platform-specific instructions.
+</Warning>
+
+## Supported platforms
+
+<Tabs>
+  <Tab title="GitHub">
+
+    ### Endpoint
+
+    `POST /api/v1/firewall/webhook/github`
+
+    ### Events handled
+
+    | Event | Action(s) | What Quanterios does |
+    |-------|-----------|----------------------|
+    | `pull_request` | `opened`, `synchronize`, `reopened` | Triggers a Semgrep scan and LLM audit on the diff. |
+    | `issue_comment` | `created` (comment contains `/quanterios scan`) | Re-triggers a scan on demand. |
+
+    ### Verification
+
+    GitHub signs every delivery with HMAC-SHA256 using the webhook secret you set during app installation. The signature arrives in the `X-Hub-Signature-256` header as `sha256=<hex>`.
+
+    Quanterios rejects any request where the computed HMAC does not match the header value.
+
+    ### Payload example
+
+    <CodeGroup>
+    ```json pull_request opened
+    {
+      "action": "opened",
+      "number": 317,
+      "pull_request": {
+        "id": 1234567890,
+        "title": "Switch JWT signing to Ed25519",
+        "head": { "sha": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2" },
+        "base": { "ref": "main" }
+      },
+      "repository": {
+        "full_name": "acme-corp/payments-service"
+      },
+      "sender": { "login": "alice" }
+    }
+    ```
+    ```json issue_comment created
+    {
+      "action": "created",
+      "issue": { "number": 317, "pull_request": {} },
+      "comment": { "body": "/quanterios scan", "user": { "login": "alice" } },
+      "repository": { "full_name": "acme-corp/payments-service" }
+    }
+    ```
+    </CodeGroup>
+
+  </Tab>
+
+  <Tab title="GitLab">
+
+    ### Endpoint
+
+    `POST /api/v1/firewall/webhook/gitlab`
+
+    ### Events handled
+
+    | Event (`object_kind`) | Action(s) | What Quanterios does |
+    |-----------------------|-----------|----------------------|
+    | `merge_request` | `open`, `update`, `reopen` | Triggers a scan and LLM audit on the MR diff. |
+    | `note` | Any note whose body contains `/quanterios scan` | Re-triggers a scan on demand. |
+
+    Enable `Merge request events` (and optionally `Comments`) when configuring the webhook in your GitLab project settings.
+
+    ### Verification
+
+    GitLab sends the secret token you configured in project settings inside the `X-Gitlab-Token` header as plain text. Quanterios compares this value to the stored secret and rejects mismatches with `401 Unauthorized`.
+
+    ### Payload example
+
+    <CodeGroup>
+    ```json merge_request opened
+    {
+      "object_kind": "merge_request",
+      "project": { "id": 99, "path_with_namespace": "acme-corp/payments-service" },
+      "object_attributes": {
+        "iid": 42,
+        "title": "Switch JWT signing to Ed25519",
+        "action": "open",
+        "last_commit": { "id": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2" },
+        "target_branch": "main"
+      },
+      "user": { "username": "alice" }
+    }
+    ```
+    ```json note (scan on demand)
+    {
+      "object_kind": "note",
+      "project": { "id": 99 },
+      "merge_request": { "iid": 42 },
+      "object_attributes": { "note": "/quanterios scan", "noteable_type": "MergeRequest" }
+    }
+    ```
+    </CodeGroup>
+
+  </Tab>
+
+  <Tab title="Bitbucket">
+
+    ### Endpoint
+
+    `POST /api/v1/firewall/webhook/bitbucket`
+
+    ### Events handled
+
+    | Event key | What Quanterios does |
+    |-----------|----------------------|
+    | `pullrequest:created` | Triggers a scan and LLM audit on the PR diff. |
+    | `pullrequest:updated` | Re-scans when new commits are pushed. |
+    | `pullrequest:comment_created` | Re-triggers a scan if the comment body contains `/quanterios scan`. |
+
+    Select `Pull Request: Created`, `Pull Request: Updated`, and `Pull Request: Comment created` when configuring the webhook in your Bitbucket repository settings.
+
+    ### Verification
+
+    Bitbucket computes an HMAC-SHA256 of the raw request body using the secret you set in the webhook configuration and includes it in the `X-Hub-Signature` header. Quanterios validates this signature before processing the payload.
+
+    ### Payload example
+
+    <CodeGroup>
+    ```json pullrequest:created
+    {
+      "eventKey": "pullrequest:created",
+      "pullrequest": {
+        "id": 5,
+        "title": "Switch JWT signing to Ed25519",
+        "source": {
+          "commit": { "hash": "a1b2c3d4e5f6" },
+          "branch": { "name": "feature/ed25519-jwt" }
+        },
+        "destination": { "branch": { "name": "main" } }
+      },
+      "repository": {
+        "full_name": "acme-corp/payments-service"
+      },
+      "actor": { "nickname": "alice" }
+    }
+    ```
+    ```json pullrequest:updated
+    {
+      "eventKey": "pullrequest:updated",
+      "pullrequest": { "id": 5, "title": "Switch JWT signing to Ed25519" },
+      "repository": { "full_name": "acme-corp/payments-service" }
+    }
+    ```
+    </CodeGroup>
+
+  </Tab>
+</Tabs>
+
+---
+
+## Signature verification
+
+Validating webhook signatures is the only reliable way to confirm that a delivery originated from your source-control platform and was not tampered with in transit.
+
+### GitHub: HMAC-SHA256
+
+Every GitHub delivery includes an `X-Hub-Signature-256` header containing `sha256=<hex-digest>`. To verify:
+
+1. Read the raw request body (before any JSON parsing).
+2. Compute `HMAC-SHA256(key=webhook_secret, message=raw_body)`.
+3. Compare the hex digest to the value in `X-Hub-Signature-256` using a constant-time comparison function.
+
+```python
+import hmac, hashlib
+
+def verify_github(raw_body: bytes, secret: str, header: str) -> bool:
+    expected = "sha256=" + hmac.new(
+        secret.encode(), raw_body, hashlib.sha256
+    ).hexdigest()
+    return hmac.compare_digest(expected, header)
+```
+
+### GitLab: secret token
+
+GitLab does not sign the body. Instead it sends the plain-text secret token you configured in the webhook settings inside the `X-Gitlab-Token` header. Compare this value to your stored secret using a constant-time equality check to prevent timing attacks.
+
+```python
+import hmac
+
+def verify_gitlab(header_token: str, stored_secret: str) -> bool:
+    return hmac.compare_digest(header_token, stored_secret)
+```
+
+### Bitbucket: HMAC-SHA256
+
+Bitbucket sends an HMAC-SHA256 signature in the `X-Hub-Signature` header using the same `sha256=<hex>` format as GitHub. Apply the same verification logic as the GitHub example above, substituting `X-Hub-Signature` for `X-Hub-Signature-256`.
+
+<Note>
+  Quanterios performs signature verification automatically on all three webhook endpoints. The code examples above are provided for teams that proxy or re-emit webhook payloads through their own middleware layer.
+</Note>
