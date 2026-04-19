@@ -1,0 +1,54 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "quill",
+  "name": "Quanterios",
+  "logo": {
+    "dark": "/logo/dark.svg",
+    "light": "/logo/light.svg"
+  },
+  "favicon": "/favicon.svg",
+  "colors": {
+    "primary": "#0a3d62",
+    "light": "#1e90ff",
+    "dark": "#0a3d62"
+  },
+  "navigation": {
+    "tabs": [],
+    "groups": [
+      {
+        "group": "Getting Started",
+        "pages": [
+          "introduction",
+          "why-post-quantum",
+          "products",
+          "quickstart"
+        ]
+      },
+      {
+        "group": "Crypto Debt Firewall",
+        "pages": [
+          "firewall/overview",
+          "firewall/github",
+          "firewall/gitlab",
+          "firewall/bitbucket",
+          "firewall/findings",
+          "firewall/ai-auditor",
+          "firewall/feedback",
+          "firewall/pricing"
+        ]
+      }
+    ]
+  },
+  "navbar": {
+    "links": [
+      {
+        "name": "API Status",
+        "url": "https://api.quanterios.com/healthz"
+      }
+    ],
+    "primary": {
+      "name": "Get Started",
+      "url": "/quickstart"
+    }
+  }
+}
