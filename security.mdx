@@ -1,0 +1,114 @@
+---
+title: "Security and Data Handling"
+description: "Infrastructure security, data encryption, access model, LLM data handling, and compliance posture for Quanterios."
+---
+
+<Info>
+  Enterprise buyers: this page covers our infrastructure, encryption standards, data residency, access model, and LLM data handling in full. If you have additional requirements, contact us at security@quanterios.com.
+</Info>
+
+## Infrastructure
+
+Quanterios runs on Hetzner Cloud in Nuremberg, Germany (EU). The datacenter is ISO 27001 and SOC 2 certified at the infrastructure layer.
+
+| Property | Detail |
+|----------|--------|
+| Cloud provider | Hetzner Cloud |
+| Region | Nuremberg, Germany (EU) |
+| Deployment model | Shared multi-tenant (default) |
+| Single-tenant | Available on request |
+| Network isolation | Private VLAN per deployment |
+
+Single-tenant deployments run in a dedicated project with no shared compute or storage.
+
+## Data Encryption
+
+All customer data is encrypted at every layer.
+
+<AccordionGroup>
+  <Accordion title="Encryption at rest">
+    All persistent data is encrypted using AES-256. This includes PostgreSQL database volumes, object storage (S3-compatible), and log archives. Encryption keys are managed via Hetzner's KMS and rotated annually.
+  </Accordion>
+  <Accordion title="Encryption in transit">
+    All API endpoints enforce TLS 1.3. TLS 1.2 is disabled. HSTS is enabled with a max-age of one year. Certificates are issued by Let's Encrypt and auto-renewed. Internal service-to-service communication uses mutual TLS.
+  </Accordion>
+  <Accordion title="Key management">
+    Tenant encryption keys are derived per-tenant using HKDF and stored separately from tenant data. Key material is never logged or exposed in API responses.
+  </Accordion>
+</AccordionGroup>
+
+## Data Residency
+
+<Info>
+  By default, your data never leaves the EU. Quanterios is hosted exclusively in Nuremberg, Germany. No data is replicated to non-EU regions unless you explicitly configure cross-region backup.
+</Info>
+
+| Data type | Location | Leaves EU? |
+|-----------|----------|------------|
+| CBOM inventory | Hetzner Nuremberg | No |
+| HNDL scores | Hetzner Nuremberg | No |
+| Compliance reports | Hetzner Nuremberg | No |
+| LLM analysis inputs | Anthropic API (US) | Yes (see LLM section) |
+| Audit logs | Hetzner Nuremberg | No |
+
+## Access Model
+
+Quanterios uses an agentless architecture. There is nothing to install in your infrastructure.
+
+<AccordionGroup>
+  <Accordion title="How discovery works">
+    Cloud connectors authenticate using read-only API credentials you provide (IAM role ARNs for AWS, service principals for Azure, service accounts for GCP). Quanterios calls cloud provider APIs from its own network to enumerate cryptographic assets. No software runs inside your VPCs, clusters, or CI pipelines unless you choose to install the Firewall GitHub Action.
+  </Accordion>
+  <Accordion title="Credential storage">
+    Cloud credentials are encrypted at rest using tenant-specific keys and are never logged. Credentials can be rotated or revoked at any time from your account settings. Quanterios requests the minimum permission set required for each connector; permission requirements are documented per connector.
+  </Accordion>
+  <Accordion title="Zero production footprint">
+    Assessment and migration planning are read-only operations. The platform never modifies your infrastructure unless you explicitly trigger a migration delivery (PR generation). Even then, the output is a pull request to your repository, subject to your own code review process.
+  </Accordion>
+</AccordionGroup>
+
+## LLM Data Handling
+
+Quanterios uses the Anthropic Claude API to power the AI Auditor (Firewall) and HNDL briefing generation.
+
+<AccordionGroup>
+  <Accordion title="What is sent to the Claude API">
+    The AI Auditor sends code diffs from pull requests. HNDL briefing generation sends CBOM asset metadata (algorithm, key size, location type, exposure class). Raw source files, secrets, credentials, and personally identifiable information are never sent.
+  </Accordion>
+  <Accordion title="Anthropic data handling">
+    Diffs and metadata sent to the Claude API are not stored by Anthropic beyond the scope of the request. Anthropic does not use API inputs for model training. This is governed by Anthropic's API usage policy, which is available at anthropic.com/legal.
+  </Accordion>
+  <Accordion title="Opt-out: Semgrep-only mode">
+    If your policy prohibits sending code diffs to external LLM APIs, you can enable Semgrep-only mode in your Firewall settings. In this mode, the AI Auditor is disabled and only deterministic Semgrep rules run. HNDL briefings will show a static summary instead of a generated analysis.
+  </Accordion>
+</AccordionGroup>
+
+## Multi-Tenancy and Data Isolation
+
+<AccordionGroup>
+  <Accordion title="Row-Level Security">
+    All tenant data is stored in a shared PostgreSQL database with Row-Level Security (RLS) enforced at the database level. Every query is automatically scoped to the authenticated tenant's ID. It is not possible for one tenant's query to return another tenant's rows, even through indirect joins or subqueries.
+  </Accordion>
+  <Accordion title="API-level isolation">
+    Every API request requires a valid `X-Tenant-Id` and `X-API-Key` pair. Tenant IDs are validated server-side against the authenticated key. Attempting to query another tenant's resources with a valid key returns a 403, not the other tenant's data.
+  </Accordion>
+</AccordionGroup>
+
+## Certifications and Compliance
+
+| Certification | Status | Target date |
+|---------------|--------|-------------|
+| SOC 2 Type II | In progress | Q3 2026 |
+| ISO 27001 | Planned | 2027 |
+| Hetzner ISO 27001 (infrastructure) | In place | Current |
+| Hetzner SOC 2 (infrastructure) | In place | Current |
+
+<Info>
+  Current security documentation and a pre-filled vendor security questionnaire are available on request for procurement teams. Contact security@quanterios.com.
+</Info>
+
+## Responsible Disclosure
+
+If you have identified a security vulnerability in Quanterios, please report it to **security@quanterios.com**.
+
+We acknowledge all reports within 48 hours and aim to resolve critical issues within 14 days. We do not pursue legal action against researchers who report vulnerabilities in good faith.

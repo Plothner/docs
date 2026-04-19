@@ -1,0 +1,95 @@
+---
+title: "Service Level Agreement"
+description: "Uptime commitments, incident response times, maintenance windows, and support channels for Quanterios paid plans."
+---
+
+<Note>
+  The SLA commitments on this page apply to paid plans only. The free tier (Crypto Debt Firewall community plan) is provided on a best-effort basis with no uptime guarantee.
+</Note>
+
+## API Availability
+
+Quanterios targets **99.9% monthly uptime** for `api.quanterios.com`.
+
+| Metric | Target |
+|--------|--------|
+| Monthly uptime | 99.9% |
+| Measurement window | Calendar month |
+| Measurement method | External synthetic monitoring |
+| Excluded | Planned maintenance, force majeure |
+
+Uptime is calculated as: `(total minutes - downtime minutes) / total minutes * 100`. Downtime begins when our monitoring detects two consecutive failed health checks at `api.quanterios.com/healthz`.
+
+## Planned Maintenance
+
+Planned maintenance is announced at least **48 hours in advance** via the status page at `api.quanterios.com/healthz` and by email to the account owner.
+
+Maintenance windows are scheduled between **02:00 and 06:00 UTC on weekdays** to minimize impact for EU and US business hours. Maintenance periods are excluded from uptime calculations.
+
+## Incident Response
+
+<AccordionGroup>
+  <Accordion title="Severity definitions">
+    | Severity | Definition |
+    |----------|------------|
+    | P1 | `api.quanterios.com` is completely unreachable or returns 5xx for more than 50% of requests |
+    | P2 | Core functionality is degraded: assessment, migration, or firewall endpoints return errors or latency exceeds 10 seconds |
+    | P3 | Non-critical features are impaired; workarounds exist; no data loss |
+  </Accordion>
+  <Accordion title="Response time commitments">
+    | Severity | First response | Status update cadence | Target resolution |
+    |----------|---------------|----------------------|-------------------|
+    | P1 (service down) | 1 hour | Every 30 minutes | 4 hours |
+    | P2 (degraded) | 4 hours | Every 2 hours | 24 hours |
+    | P3 (minor) | 24 hours | As needed | Next release |
+
+    Response times are measured from the time the incident is confirmed by Quanterios monitoring or reported via a support channel listed below.
+  </Accordion>
+  <Accordion title="Incident communication">
+    Incident status is published in real time at `api.quanterios.com/healthz`. For P1 and P2 incidents, the account owner receives email updates at each status change. Post-incident reviews are published within five business days of resolution for P1 incidents.
+  </Accordion>
+</AccordionGroup>
+
+## Status and Health Check
+
+The health endpoint is publicly accessible and returns a JSON payload with current service status:
+
+```bash
+curl https://api.quanterios.com/healthz
+```
+
+```json
+{
+  "status": "ok",
+  "api": "ok",
+  "database": "ok",
+  "airflow": "ok",
+  "timestamp": "2026-04-18T10:00:00Z"
+}
+```
+
+<Info>
+  You can configure external monitoring (Datadog, Uptime Robot, Grafana Cloud) to poll `api.quanterios.com/healthz` directly. The endpoint requires no authentication.
+</Info>
+
+## Support Channels
+
+| Channel | Plans | Response target |
+|---------|-------|-----------------|
+| Email: support@quanterios.com | All paid plans | P3: 24 hours |
+| GitHub Issues | All plans | Best effort |
+| Dedicated Slack channel | Enterprise | P1: 1 hour, P2: 4 hours |
+
+Enterprise customers receive a dedicated Slack Connect channel shared with the Quanterios engineering team. P1 and P2 incidents can be escalated directly in Slack with an acknowledgment within 15 minutes during business hours (09:00 to 18:00 CET).
+
+## SLA Credits
+
+If monthly uptime falls below 99.9%, paid customers are eligible for service credits:
+
+| Monthly uptime | Credit |
+|----------------|--------|
+| 99.0% to 99.9% | 10% of monthly fee |
+| 95.0% to 99.0% | 25% of monthly fee |
+| Below 95.0% | 50% of monthly fee |
+
+Credits are applied to the next billing cycle. To claim a credit, email support@quanterios.com within 30 days of the incident with the relevant dates and affected tenant ID.

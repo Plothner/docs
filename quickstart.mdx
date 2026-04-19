@@ -19,6 +19,10 @@ Connect your cloud infrastructure and discover every cryptographic asset.
   <Step title="Connect Your Cloud Account">
     Use the CBOM API to register your cloud assets. For AWS, provide an IAM role ARN with read-only access:
 
+<Tip>
+  For production use, connect your cloud accounts through the Quanterios connectors to automatically discover all cryptographic assets. The manual API shown below is useful for testing and evaluation. See the [Assessment](/risk-intelligence/overview) section for connector setup.
+</Tip>
+
     ```bash
     curl -X POST https://api.quanterios.com/cbom/assets \
       -H "Content-Type: application/json" \

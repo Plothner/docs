@@ -79,6 +79,23 @@ Quanterios addresses the full cryptographic governance lifecycle across three st
   </Step>
 </Steps>
 
+## What Makes Quanterios Different
+
+<AccordionGroup>
+  <Accordion title="End-to-end, not assessment-only">
+    Most crypto governance tools stop at discovery and reporting. Quanterios goes further: it generates runnable migration code (Terraform, Ansible, Helm), predicts breakage probability with a machine learning model trained on thousands of real migrations, and delivers the fix as a pull request to your repository.
+  </Accordion>
+  <Accordion title="AI-powered, not rule-based">
+    Quanterios combines deterministic rule engines with LLM reasoning. The HNDL risk score uses a weighted formula for auditability. The AI auditor uses Claude to detect novel anti-patterns that no rule can catch. The breakage predictor uses XGBoost trained on real migration outcomes. Each layer serves a different purpose.
+  </Accordion>
+  <Accordion title="Zero-downtime migration">
+    Hybrid mode deployment runs classical and post-quantum algorithms simultaneously. Legacy clients negotiate classical handshakes; modern clients negotiate PQC. When 99.5% of connections use PQC, Quanterios auto-generates a cleanup PR to deprecate classical. Nothing breaks during the transition.
+  </Accordion>
+  <Accordion title="Migration outcomes dataset">
+    Every migration execution feeds the breakage prediction model. Over time, Quanterios predicts migration breakage better than a human consultant because it accumulates outcomes across every customer. This dataset is the competitive moat that no new entrant can replicate.
+  </Accordion>
+</AccordionGroup>
+
 ## Next Steps
 
 <CardGroup cols={2}>
