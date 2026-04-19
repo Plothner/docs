@@ -1,5 +1,59 @@
-<svg width="502" height="502" viewBox="0 0 502 502" fill="none" xmlns="http://www.w3.org/2000/svg">
-<path d="M501.402 185.33V29.9622C501.402 13.2897 487.876 0 471.453 0H316.156C291.763 0 267.611 4.83243 245.15 14.0144C222.689 23.438 202.16 36.9695 185.012 54.3668L183.804 55.575C161.101 78.5299 144.92 107.042 136.708 138.454C151.441 134.588 166.656 132.655 181.871 132.413C222.447 131.93 262.298 144.978 294.661 169.383C323.885 191.13 346.104 221.092 358.18 255.645C370.739 290.681 372.188 328.859 362.769 364.862C393.925 356.647 422.666 340.457 445.611 317.744L446.818 316.536C463.966 299.38 477.732 278.841 487.151 256.37C496.571 233.898 501.16 209.735 501.16 185.33H501.402Z" fill="#18E299"/>
-<path d="M132.071 182.706C132.312 135.044 151.32 89.3068 184.764 55.1246L55.5569 184.391C55.0756 184.873 54.5942 185.113 54.113 185.595C22.5932 216.888 3.58552 258.774 0.457596 303.066C-2.42971 344.47 8.39746 385.392 31.4959 419.575C33.6992 422.835 39.6774 423.907 43.0459 420.778L122.206 341.822C146.989 317.028 154.689 280.198 142.899 247.219C135.44 226.758 131.831 204.852 132.071 182.706Z" fill="#0C8C5E"/>
-<path d="M446.067 316.547C421.284 340.86 390.245 357.71 356.56 365.172C322.634 372.635 287.506 370.468 254.783 358.914C254.783 358.914 254.542 358.914 254.301 358.914C221.338 347.118 184.525 354.821 159.742 379.375L80.5808 458.331C77.2123 461.701 77.6935 467.238 81.7838 469.885C115.95 492.754 156.855 503.827 198.24 500.938C242.512 497.809 284.137 478.792 315.656 447.258L316.859 446.054L446.067 316.788V316.547Z" fill="#0C8C5E"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128" role="img" aria-label="Quanterios alt mark B1 v2 — lattice cell with quantum + AI cues">
+  <title>Quanterios — lattice cell mark (v2)</title>
+  <desc>Primary lattice cell with a rotated ghost lattice behind (superposition / quasicrystal → quantum cue) and a concentric dual-ring center node (reasoning core → AI cue). Cryptographic lattice remains the dominant read.</desc>
+  <defs>
+    <linearGradient id="b1v2g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#4F46E5"/>
+      <stop offset="100%" stop-color="#06B6D4"/>
+    </linearGradient>
+    <radialGradient id="b1v2core" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#22D3EE"/>
+      <stop offset="60%" stop-color="#4F46E5"/>
+      <stop offset="100%" stop-color="#1E1B4B"/>
+    </radialGradient>
+  </defs>
+  <rect width="128" height="128" fill="#0F172A"/>
+
+  <!-- ghost lattice: rotated 30°, lower opacity, quasicrystal / superposition cue -->
+  <g transform="rotate(30 64 64)" opacity="0.35">
+    <g stroke="url(#b1v2g)" stroke-width="1.2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M64 28 L100 64 L64 100 L28 64 Z"/>
+      <path d="M64 28 L64 100" opacity="0.5"/>
+      <path d="M28 64 L100 64" opacity="0.5"/>
+    </g>
+    <g fill="url(#b1v2g)">
+      <circle cx="64" cy="28" r="2.6"/>
+      <circle cx="100" cy="64" r="2.6"/>
+      <circle cx="64" cy="100" r="2.6"/>
+      <circle cx="28" cy="64" r="2.6"/>
+    </g>
+  </g>
+
+  <!-- primary lattice cell -->
+  <g stroke="url(#b1v2g)" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M64 22 L106 64 L64 106 L22 64 Z"/>
+    <path d="M64 22 L64 106" opacity="0.5"/>
+    <path d="M22 64 L106 64" opacity="0.5"/>
+    <path d="M43 43 L85 43 L85 85 L43 85 Z" opacity="0.35"/>
+    <path d="M43 43 L85 85 M85 43 L43 85" opacity="0.2"/>
+  </g>
+
+  <!-- outer + inner nodes -->
+  <g fill="url(#b1v2g)">
+    <circle cx="64" cy="22" r="4.5"/>
+    <circle cx="106" cy="64" r="4.5"/>
+    <circle cx="64" cy="106" r="4.5"/>
+    <circle cx="22" cy="64" r="4.5"/>
+    <circle cx="43" cy="43" r="2.6" opacity="0.85"/>
+    <circle cx="85" cy="43" r="2.6" opacity="0.85"/>
+    <circle cx="85" cy="85" r="2.6" opacity="0.85"/>
+    <circle cx="43" cy="85" r="2.6" opacity="0.85"/>
+  </g>
+
+  <!-- concentric center node: AI reasoning core -->
+  <g>
+    <circle cx="64" cy="64" r="9" fill="none" stroke="url(#b1v2g)" stroke-width="1" stroke-opacity="0.55"/>
+    <circle cx="64" cy="64" r="6.2" fill="url(#b1v2core)"/>
+    <circle cx="64" cy="64" r="2.2" fill="#F8FAFC"/>
+  </g>
 </svg>
