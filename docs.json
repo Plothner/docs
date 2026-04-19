@@ -62,6 +62,42 @@
           "firewall/feedback",
           "firewall/pricing"
         ]
+      },
+      {
+        "group": "Crypto Risk Intelligence",
+        "pages": [
+          "risk-intelligence/overview",
+          "risk-intelligence/discovery",
+          "risk-intelligence/aws",
+          "risk-intelligence/azure",
+          "risk-intelligence/gcp",
+          "risk-intelligence/kubernetes",
+          "risk-intelligence/on-prem",
+          "risk-intelligence/cbom",
+          "risk-intelligence/hndl-scoring",
+          "risk-intelligence/compliance",
+          "risk-intelligence/reports"
+        ]
+      },
+      {
+        "group": "Migration Intelligence",
+        "pages": [
+          "migration/overview",
+          "migration/paths",
+          "migration/playbooks",
+          "migration/code-patcher",
+          "migration/hybrid-mode",
+          "migration/breakage-prediction",
+          "migration/pr-delivery",
+          "migration/cost-estimation"
+        ]
+      },
+      {
+        "group": "Coming Soon",
+        "pages": [
+          "crypto-agility-api/overview",
+          "pqc-ca/overview"
+        ]
       }
     ]
   },
