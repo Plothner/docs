@@ -1,10 +1,10 @@
 ---
 title: "What is Quanterios?"
 sidebarTitle: "Introduction"
-description: "Cryptographic governance for the post-quantum era. Discover, score, and eliminate cryptographic risk across your entire infrastructure."
+description: "Cryptographic governance for the post-quantum era. Assess your cryptographic posture, migrate to quantum-safe algorithms, and prevent new debt from entering your codebase."
 ---
 
-Quanterios is a cryptographic governance platform that gives security and engineering teams complete visibility into the cryptographic assets scattered across their code, cloud infrastructure, certificates, and APIs. It scores each asset for post-quantum risk, maps it to compliance frameworks, and delivers the migration tooling needed to remediate findings without disrupting production systems.
+Quanterios is the cryptographic governance platform for the post-quantum era. It provides end-to-end cryptographic lifecycle management: assess your current cryptographic posture, migrate to quantum-safe algorithms, and prevent new cryptographic debt from entering your codebase.
 
 <Info>
   **Harvest Now, Decrypt Later (HNDL)** is not a future threat. Nation-state adversaries are capturing encrypted traffic today and storing it for decryption once a cryptographically relevant quantum computer (CRQC) becomes available. Data with a long shelf life, such as health records, financial transactions, and government communications, is already at risk. The window to act is narrowing.
@@ -20,31 +20,31 @@ Organizations face three compounding challenges when trying to address cryptogra
 
 3. **Migration paralysis.** Swapping algorithms in production systems is risky. There are no standard playbooks for most stacks, hybrid mode coordination is manual, and breakage prediction is non-existent. Teams defer migration indefinitely because the cost and risk of action feels higher than the cost of inaction.
 
-## The Solution
+## What Quanterios Does
 
-Quanterios addresses the full cryptographic governance lifecycle through five integrated products.
+Quanterios addresses the full cryptographic governance lifecycle across three stages: assess, migrate, and prevent.
 
 <CardGroup cols={2}>
   <Card
-    title="Crypto Debt Firewall"
-    icon="shield-check"
-    href="/customer/products#crypto-debt-firewall"
-  >
-    Scan every pull request for cryptographic anti-patterns before they reach production. Integrates with GitHub, GitLab, and Bitbucket. Free tier available.
-  </Card>
-  <Card
-    title="Crypto Risk Intelligence"
+    title="Cryptographic Risk Assessment"
     icon="chart-bar"
-    href="/customer/products#crypto-risk-intelligence"
+    href="/customer/products#assess"
   >
-    Discover cryptographic assets across 40 cloud and infrastructure connectors. Score each asset with the HNDL model across four dimensions and map findings to 13 compliance frameworks.
+    Discover every certificate, key, and algorithm across 40 cloud and infrastructure connectors. Score each asset against the HNDL threat model and map findings to 13 compliance frameworks. Generate board-ready PDF reports on demand.
   </Card>
   <Card
-    title="Migration Intelligence"
+    title="Migration Planning and Execution"
     icon="arrow-right-arrow-left"
-    href="/customer/products#migration-intelligence"
+    href="/customer/products#migrate"
   >
-    Execute safe, automated migration across 29 supported paths using Terraform, Ansible, and Helm playbooks. Predict breakage with an XGBoost model (AUC 0.94) before you touch production.
+    Select from 29 supported migration paths and generate runnable Terraform, Ansible, or Helm playbooks. Predict breakage probability before touching production. Deliver the remediation as a pull request to your repository.
+  </Card>
+  <Card
+    title="Continuous Crypto Debt Prevention"
+    icon="shield-check"
+    href="/customer/products#prevent"
+  >
+    Scan every pull request for cryptographic vulnerabilities before code reaches production. Combines deterministic Semgrep rules with AI-powered analysis. Integrates with GitHub, GitLab, and Bitbucket. Free tier available.
   </Card>
   <Card
     title="Crypto Agility API"
@@ -65,17 +65,17 @@ Quanterios addresses the full cryptographic governance lifecycle through five in
 ## How It Works
 
 <Steps>
-  <Step title="Install the Firewall">
+  <Step title="Prevent New Debt">
     Add the Quanterios GitHub Action (or GitLab/Bitbucket equivalent) to your CI pipeline in under five minutes. Every pull request is scanned for cryptographic anti-patterns before code merges.
   </Step>
-  <Step title="Discover Assets">
+  <Step title="Discover Existing Assets">
     Connect your cloud accounts, container registries, certificate stores, and repositories through Quanterios connectors. The platform builds a live cryptographic inventory across your entire infrastructure.
   </Step>
   <Step title="Score and Prioritize">
     Each asset receives an HNDL risk score from 0 to 100 across four dimensions: algorithm weakness, data sensitivity, exposure level, and migration urgency. Compliance gaps are mapped automatically to the frameworks you care about.
   </Step>
   <Step title="Migrate Safely">
-    Select a remediation path and let Migration Intelligence generate the Terraform, Ansible, or Helm playbook. Run breakage prediction before applying changes. Use hybrid mode to operate old and new algorithms in parallel during rollover.
+    Select a remediation path and let the platform generate the Terraform, Ansible, or Helm playbook. Run breakage prediction before applying changes. Use hybrid mode to operate old and new algorithms in parallel during rollover.
   </Step>
 </Steps>
 
@@ -87,13 +87,13 @@ Quanterios addresses the full cryptographic governance lifecycle through five in
     icon="rocket"
     href="/customer/quickstart"
   >
-    Install the Crypto Debt Firewall in five minutes with a single GitHub Action.
+    Set up continuous crypto debt prevention in five minutes with a single CI integration.
   </Card>
   <Card
-    title="Products"
+    title="How It Works"
     icon="grid-2"
     href="/customer/products"
   >
-    Explore all five Quanterios products and how they work together.
+    Explore the three stages of cryptographic governance and how they work together.
   </Card>
 </CardGroup>

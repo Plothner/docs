@@ -1,19 +1,17 @@
 ---
-title: "Migration Intelligence"
-description: "Discover the problem with Risk Intelligence. Fix it with Migration Intelligence. Quanterios generates runnable IaC playbooks, predicts breakage, and delivers everything as a pull request."
+title: "Cryptographic Migration"
+description: "Plan, predict, and execute cryptographic migrations across 29 supported paths. Generate runnable infrastructure code, predict breakage probability before deploying, and deliver the migration as a pull request."
 ---
 
 <Info>
-  Migration Intelligence is backed by **960 tests** covering the full playbook pipeline, from template rendering through canary deployment and cleanup confirmation.
+  Migration is backed by **960 tests** covering the full playbook pipeline, from template rendering through canary deployment and cleanup confirmation.
 </Info>
 
-## The workflow in context
+Quanterios automates cryptographic migration from planning through deployment. Select from 29 supported migration paths, generate runnable infrastructure code, predict breakage probability before deploying, and deliver the migration as a pull request to your repository. These capabilities are powered by Quanterios Migration Intelligence.
 
-Risk Intelligence surfaces every weak algorithm, expiring certificate, and compliance gap in your environment. Migration Intelligence picks up from there: it converts each finding into a runnable fix with a predicted breakage probability before a single change reaches production.
+The migration workflow connects directly to the risk assessment stage: every weak algorithm, expiring certificate, and compliance gap surfaced during discovery can be converted into a runnable fix. You can also specify any source and target algorithm manually, without requiring a prior discovery scan.
 
-The two products are designed to be used together, but Migration Intelligence accepts manual input as well. You can specify any source and target algorithm directly.
-
-## 29 migration paths
+## 29 Migration Paths
 
 Quanterios ships with 29 pre-built migration paths across three categories:
 
@@ -25,30 +23,30 @@ Quanterios ships with 29 pre-built migration paths across three categories:
 
 See [Migration Paths](/migration/paths) for the full table.
 
-## End-to-end workflow
+## End-to-End Workflow
 
 <Steps>
-  <Step title="Select a template">
-    Choose a migration path from the 29 available templates. Each template encodes the source algorithm, target algorithm, platform, and IaC type (Terraform, Ansible, or Helm).
+  <Step title="Select a migration path">
+    Choose from 29 available templates. Each template encodes the source algorithm, target algorithm, platform, and IaC type (Terraform, Ansible, or Helm).
   </Step>
-  <Step title="Preview with breakage prediction">
-    Before any plan is created, the XGBoost model scores your specific migration on a 0 to 100% breakage probability scale. Inputs include library version, dependency count, platform, and historical outcomes from 5,000+ real GitHub crypto PRs.
+  <Step title="Predict breakage before deploying">
+    Before any plan is created, an XGBoost model scores your specific migration on a 0 to 100% breakage probability scale. Inputs include library version, dependency count, platform, and historical outcomes from 5,000+ real GitHub crypto PRs. AUC 0.94.
   </Step>
-  <Step title="Create the plan">
-    The engine renders Jinja2 templates into fully-parameterized HCL, YAML playbooks, or Helm values files. The rendered output is stored in the migration plan and version-controlled.
+  <Step title="Generate the playbook">
+    The engine renders Jinja2 templates into fully parameterized HCL, YAML playbooks, or Helm values files. The rendered output is stored in the migration plan and version-controlled.
   </Step>
-  <Step title="Deploy: canary then rollout">
+  <Step title="Patch application code">
+    A Python code patcher applies hybrid shims to your codebase, letting old and new algorithms run side by side during the transition period. No manual editing required.
+  </Step>
+  <Step title="Deploy with canary rollout">
     Deployment is staged. The canary phase routes a configurable percentage of traffic to the new configuration. Metrics are collected for the full monitoring window before full rollout proceeds.
   </Step>
-  <Step title="Monitor">
-    Log-based monitoring tracks handshake ratios, cipher suite negotiations, and error rates throughout the monitoring window. No agent required.
-  </Step>
-  <Step title="Confirm and close">
-    When rolloff criteria are met, Quanterios opens a cleanup PR to remove the old configuration. The migration moves to a confirmed state in the portfolio.
+  <Step title="Monitor and confirm">
+    Log-based monitoring tracks handshake ratios, cipher suite negotiations, and error rates throughout the monitoring window. When rolloff criteria are met, Quanterios opens a cleanup PR to remove the old configuration.
   </Step>
 </Steps>
 
-## Where to go next
+## Capabilities
 
 <CardGroup cols={2}>
   <Card title="Migration Paths" icon="route" href="/migration/paths">

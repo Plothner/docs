@@ -1,35 +1,70 @@
 ---
 title: "How It Works"
-description: "Five integrated products covering the complete cryptographic governance lifecycle, from prevention to post-quantum certificate issuance."
+description: "Three stages of cryptographic governance: assess your posture, migrate to quantum-safe algorithms, and prevent new debt from entering your codebase."
 ---
 
-Quanterios covers the full cryptographic governance lifecycle through five products that work together as a platform. You can adopt each product independently or deploy them together for end-to-end coverage: stop new debt at the pull request, discover what already exists, score and prioritize the risk, migrate safely, and then maintain agility as algorithms evolve.
+Quanterios covers the full cryptographic governance lifecycle through three stages that work together as a platform. You can adopt each stage independently or deploy them together for end-to-end coverage. Stop new debt at the pull request, discover and score what already exists, then migrate safely to quantum-safe algorithms.
 
-## Available Now
+## Stage 1: Assess
 
-<CardGroup cols={1}>
-  <Card
-    title="Crypto Debt Firewall"
-    icon="shield-check"
-    href="/customer/quickstart"
-  >
-    The Crypto Debt Firewall integrates with GitHub, GitLab, and Bitbucket CI pipelines to scan every pull request for cryptographic anti-patterns before they reach production. It combines Semgrep static analysis with an LLM-powered AI auditor that interprets findings in context, assigns a confidence score, and posts a structured review comment directly on the pull request. Developers receive actionable guidance without leaving their workflow. A free tier is available with no infrastructure required.
-  </Card>
-  <Card
-    title="Crypto Risk Intelligence"
-    icon="chart-bar"
-    href="/customer/products#crypto-risk-intelligence"
-  >
-    Crypto Risk Intelligence discovers cryptographic assets across 40 connectors spanning AWS (12 services), Azure (8 services), GCP, Kubernetes, container registries, code repositories, and public certificate transparency logs. Each asset is scored using the HNDL model on a 0 to 100 scale across four dimensions: algorithm weakness, data sensitivity, network exposure, and migration urgency. Findings are mapped to 13 compliance frameworks including NIST CSF, CNSA 2.0, ISO 27001, SOC 2, HIPAA, and FedRAMP. Board-ready PDF reports are generated on demand.
-  </Card>
-  <Card
-    title="Migration Intelligence"
-    icon="arrow-right-arrow-left"
-    href="/customer/products#migration-intelligence"
-  >
-    Migration Intelligence covers 29 supported migration paths and generates Terraform, Ansible, and Helm playbooks tailored to your environment. A Python code patcher applies hybrid shims that let old and new algorithms run side by side during the transition period. Breakage prediction uses an XGBoost model trained on real-world migration data, delivering an AUC of 0.94. Remediated findings are delivered as pull requests directly to your repository, keeping engineers in the loop without requiring them to manage the migration manually.
-  </Card>
-</CardGroup>
+Understand everything that exists in your cryptographic environment before you can fix it.
+
+<Card
+  title="Cryptographic Risk Assessment"
+  icon="chart-bar"
+  href="/customer/risk-intelligence/overview"
+>
+  Connect 40 agentless connectors across AWS (12 services), Azure (8 services), GCP, Kubernetes, container registries, code repositories, and public certificate transparency logs. Every discovered asset is catalogued in a Cryptographic Bill of Materials and scored using the HNDL model on a 0 to 100 scale across four dimensions: algorithm weakness, data sensitivity, network exposure, and migration urgency. Findings are mapped to 13 compliance frameworks including NIST CSF, CNSA 2.0, ISO 27001, SOC 2, HIPAA, and FedRAMP. Board-ready PDF reports are generated on demand. Powered by Quanterios Crypto Risk Intelligence.
+</Card>
+
+**What you can do in this stage:**
+
+- Discover every TLS certificate, cloud encryption key, SSH key, and cryptographic code call across your infrastructure
+- Generate a complete CBOM with algorithm, key size, expiry, and ownership metadata for every asset
+- Score each asset against the Harvest Now, Decrypt Later threat model
+- Map compliance gaps against 13 regulatory frameworks with deadline tracking
+- Generate executive briefings and board-ready PDF reports
+
+## Stage 2: Migrate
+
+Convert findings into runnable fixes and deploy them safely.
+
+<Card
+  title="Migration Planning and Execution"
+  icon="arrow-right-arrow-left"
+  href="/customer/migration/overview"
+>
+  Select from 29 pre-built migration paths covering classical hygiene fixes, quantum-safe algorithm upgrades, and hybrid dual-algorithm deployments. The platform generates Terraform, Ansible, and Helm playbooks tailored to your environment. A Python code patcher applies hybrid shims that let old and new algorithms run side by side during the transition period. Breakage prediction uses an XGBoost model trained on 5,000+ real-world migration events, delivering an AUC of 0.94. Remediated findings are delivered as pull requests directly to your repository, keeping engineers in the loop without requiring them to manage the migration manually. Powered by Quanterios Migration Intelligence.
+</Card>
+
+**What you can do in this stage:**
+
+- Choose from 13 classical, 10 quantum, and 6 hybrid migration paths
+- Generate fully parameterized Terraform, Ansible, or Helm playbooks
+- Predict breakage probability before any change reaches production
+- Apply hybrid shims to application code so old and new algorithms coexist during rollover
+- Monitor canary deployments with log-based cipher suite and error rate tracking
+- Receive the completed migration as a pull request for review and merge
+
+## Stage 3: Prevent
+
+Stop new cryptographic debt before it enters the codebase.
+
+<Card
+  title="Continuous Crypto Debt Prevention"
+  icon="shield-check"
+  href="/customer/firewall/overview"
+>
+  The prevention stage runs at the CI layer on every pull request. A curated set of Semgrep rules catches known-weak primitives, deprecated functions, and insecure configurations with exact file and line references. An AI auditor analyzes the same diff for higher-order patterns that static rules cannot reliably detect: custom crypto implementations, IV reuse across call sites, and algorithmic downgrades. Findings are posted as a structured review comment directly on the pull request. Integrates with GitHub, GitLab, and Bitbucket. A free tier is available with no credit card required. Powered by the Quanterios Crypto Debt Firewall.
+</Card>
+
+**What you can do in this stage:**
+
+- Scan every pull request for cryptographic vulnerabilities automatically at CI time
+- Catch weak primitives, deprecated functions, and insecure cipher modes with deterministic rules
+- Detect custom crypto implementations, IV reuse, weak RNG usage, and algorithmic downgrades with AI analysis
+- Receive actionable remediation guidance without leaving the pull request workflow
+- Generate training signals that feed back into your overall cryptographic risk profile
 
 ## Coming Soon
 
@@ -48,22 +83,22 @@ Quanterios covers the full cryptographic governance lifecycle through five produ
   </Card>
 </CardGroup>
 
-## How the Products Work Together
+## How the Stages Work Together
 
 <Steps>
   <Step title="Prevent: Stop New Debt at the Source">
-    The Crypto Debt Firewall sits at the CI layer and blocks cryptographic anti-patterns from merging. RSA key generation, weak PRNG usage, deprecated cipher suites, and hard-coded secrets are caught at the pull request stage before they enter your codebase or infrastructure definitions.
+    The continuous prevention stage sits at the CI layer and blocks cryptographic anti-patterns from merging. RSA key generation, weak PRNG usage, deprecated cipher suites, and hard-coded secrets are caught at the pull request stage before they enter your codebase or infrastructure definitions.
   </Step>
-  <Step title="Discover: Build Your Cryptographic Inventory">
-    Crypto Risk Intelligence connects to your cloud accounts, container registries, certificate stores, and code repositories through 40 purpose-built connectors. It builds a continuously updated inventory of every cryptographic asset across your environment, including assets in systems you did not know were in scope.
+  <Step title="Assess: Build Your Cryptographic Inventory">
+    The risk assessment stage connects to your cloud accounts, container registries, certificate stores, and code repositories through 40 purpose-built connectors. It builds a continuously updated inventory of every cryptographic asset across your environment, including assets in systems you did not know were in scope.
   </Step>
-  <Step title="Fix: Migrate with Confidence">
-    Migration Intelligence takes the prioritized findings from Crypto Risk Intelligence and generates the specific playbooks needed to remediate each one. Breakage prediction runs before any changes are applied. Hybrid mode keeps services running during the transition. Pull requests deliver the changes directly to your repositories for review and merge.
+  <Step title="Migrate: Fix With Confidence">
+    The migration stage takes the prioritized findings from your assessment and generates the specific playbooks needed to remediate each one. Breakage prediction runs before any changes are applied. Hybrid mode keeps services running during the transition. Pull requests deliver the changes directly to your repositories for review and merge.
   </Step>
-  <Step title="Integrate: Maintain Algorithm Agility">
+  <Step title="Integrate: Maintain Algorithm Agility (Coming Soon)">
     Once the Crypto Agility API is available, new services integrate through a single endpoint. Algorithm selection, rotation, and deprecation are managed at the API layer, decoupling your application code from cryptographic implementation details. As standards evolve, you update policy rather than code.
   </Step>
-  <Step title="Issue: Operate a Post-Quantum PKI">
+  <Step title="Issue: Operate a Post-Quantum PKI (Coming Soon)">
     The PQC Certificate Authority closes the loop by giving your organization the ability to issue ML-KEM and ML-DSA certificates internally. Combined with the Crypto Agility API, this enables a fully managed post-quantum cryptographic infrastructure with centralized lifecycle governance.
   </Step>
 </Steps>
