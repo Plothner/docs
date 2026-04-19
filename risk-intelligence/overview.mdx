@@ -1,0 +1,60 @@
+---
+title: "Crypto Risk Intelligence"
+description: "Discover every cryptographic asset across your cloud infrastructure, score quantum risk with AI-powered HNDL analysis, and generate board-ready compliance reports."
+---
+
+<Info>
+  Quanterios connects to your infrastructure through **40 agentless connectors** spanning AWS, Azure, GCP, Kubernetes, and on-premises systems. No agents installed. No production footprint.
+</Info>
+
+## What Crypto Risk Intelligence does
+
+Post-quantum migration starts with knowing what you have. Crypto Risk Intelligence gives you a complete, continuously updated inventory of every cryptographic asset in your environment, scored for quantum risk and mapped against the compliance frameworks that matter to your organization.
+
+<CardGroup cols={2}>
+  <Card title="Asset Discovery" icon="radar" href="/risk-intelligence/discovery">
+    API-based scanning across 40 connectors. Finds TLS certificates, cloud encryption keys, SSH keys, and cryptographic code calls without touching production workloads.
+  </Card>
+  <Card title="CBOM" icon="table" href="/risk-intelligence/cbom">
+    A Cryptographic Bill of Materials for your entire organization. Every asset catalogued with algorithm, key size, expiry, and ownership metadata.
+  </Card>
+  <Card title="HNDL Risk Scoring" icon="gauge" href="/risk-intelligence/hndl-scoring">
+    Harvest Now, Decrypt Later scores combine data sensitivity, quantum timeline, exposure surface, and regulatory pressure into a single 0-100 risk number per asset.
+  </Card>
+  <Card title="Compliance Engine" icon="shield-check" href="/risk-intelligence/compliance">
+    Gap analysis against 13 frameworks including CNSA 2.0, NIS2, PCI DSS 4.0, and GDPR. Deadline tracking built in.
+  </Card>
+  <Card title="Board Reports" icon="file-chart-line" href="/risk-intelligence/reports">
+    PDF reports rendered in seconds via Typst. Portfolio summaries, per-asset migration plans, and executive HNDL briefings.
+  </Card>
+</CardGroup>
+
+## How it fits together
+
+<Steps>
+  <Step title="Connect your infrastructure">
+    Point Quanterios at your cloud accounts and on-premises systems using read-only credentials. Discovery runs immediately and on a configurable schedule.
+  </Step>
+  <Step title="Review your CBOM">
+    Every discovered asset lands in your Cryptographic Bill of Materials. Filter by algorithm, key size, expiry date, or risk score.
+  </Step>
+  <Step title="Understand your HNDL exposure">
+    The scoring engine evaluates each asset across four risk dimensions and generates an AI-written briefing explaining the risk in plain language.
+  </Step>
+  <Step title="Map against compliance frameworks">
+    The Compliance Engine checks each asset against the frameworks you care about and highlights gaps with deadline context.
+  </Step>
+  <Step title="Export and act">
+    Generate board-ready PDFs or trigger migration workflows directly from the dashboard or the API.
+  </Step>
+</Steps>
+
+## Supported platforms
+
+| Platform | Connectors | What is discovered |
+|---|---|---|
+| AWS | 12 | ACM, KMS, CloudFront, S3, RDS, ELB, Lambda, DynamoDB, EBS, Secrets Manager, IAM, API Gateway |
+| Azure | 8 | Key Vault, App Service, Application Gateway, Cosmos DB, Entra ID Apps, Storage, SQL Database, Front Door |
+| GCP | 8 | Cloud KMS, Certificate Manager, Load Balancer, Cloud SQL, GKE, Cloud Storage, Compute Engine, Secret Manager |
+| Kubernetes | 4 | TLS Secrets, Ingress Controllers, Service Mesh, cert-manager |
+| On-Premises | 8 | PKI (Venafi, EJBCA), LDAP, Code Scanner, MySQL, PostgreSQL |

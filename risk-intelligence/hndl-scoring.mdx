@@ -1,0 +1,96 @@
+---
+title: "HNDL Risk Scoring"
+description: "Harvest Now, Decrypt Later scoring quantifies the quantum risk of every cryptographic asset using four weighted dimensions. Scores range from 0 to 100. AI-generated briefings explain the risk in plain language."
+---
+
+<Info>
+  HNDL scores are calculated at discovery time and recalculated whenever an asset changes. Score history is retained indefinitely so you can track risk trends over time.
+</Info>
+
+## How scoring works
+
+The HNDL threat model is straightforward: adversaries are harvesting encrypted traffic today with the intent to decrypt it once a cryptographically relevant quantum computer (CRQC) becomes available. The risk of a given asset depends on four factors: how sensitive the data it protects is, how soon a CRQC might arrive, how exposed the asset is to potential harvesters, and how urgently compliance frameworks require remediation.
+
+Quanterios scores each dimension from 0 to 25, then sums them for a total score of 0 to 100.
+
+## Scoring dimensions
+
+| Dimension | Max score | What it measures |
+|---|---|---|
+| **Data Sensitivity** | 25 | The value and sensitivity of the data this asset protects. Health records, financial data, and government secrets score highest. Internal tooling scores lowest. |
+| **Quantum Timeline** | 25 | How much time remains before a CRQC could break this algorithm, relative to the data's required confidentiality window. Long-lived data protected by RSA-2048 scores highest. |
+| **Exposure Surface** | 25 | How accessible the encrypted traffic is to a harvesting adversary. Internet-facing TLS endpoints score highest. Air-gapped internal services score lowest. |
+| **Regulatory Pressure** | 25 | The urgency of applicable compliance deadlines. Assets in scope for CNSA 2.0 or NIS2 with near-term deadlines score highest. |
+
+## Severity mapping
+
+| Score range | Severity | Recommended action |
+|---|---|---|
+| 80-100 | **Critical** | Migrate immediately. Include in next board report. |
+| 60-79 | **High** | Schedule migration within current quarter. |
+| 40-59 | **Medium** | Include in next annual migration cycle. |
+| 20-39 | **Low** | Monitor. Prioritize when capacity allows. |
+| 0-19 | **Informational** | Acceptable risk. No immediate action required. |
+
+## Dimension breakdown
+
+<AccordionGroup>
+  <Accordion title="Data Sensitivity (0-25)">
+    This dimension reflects the real-world value of the data the asset protects. Quanterios infers sensitivity from asset metadata, tags, and the services the asset is attached to.
+
+    | Score range | Sensitivity level | Examples |
+    |---|---|---|
+    | 20-25 | Highly sensitive | Healthcare records (HIPAA), cardholder data (PCI), classified government data |
+    | 13-19 | Sensitive | PII, financial records, intellectual property |
+    | 6-12 | Internal | Internal APIs, employee systems, business data |
+    | 0-5 | Public or low-risk | Public-facing static content, development environments |
+
+    You can override the inferred sensitivity level on any asset using the `data_sensitivity` field in the CBOM API.
+  </Accordion>
+
+  <Accordion title="Quantum Timeline (0-25)">
+    This dimension models the intersection of two timelines: when a CRQC capable of breaking the asset's algorithm is expected to arrive, and how long the data protected by this asset needs to remain confidential.
+
+    Quanterios uses published estimates from NIST, BSI, and ANSSI for CRQC timelines. These estimates are updated as new research emerges.
+
+    | Algorithm | Current quantum vulnerability |
+    |---|---|
+    | RSA-2048 | Breakable by a CRQC with ~4000 logical qubits (Shor's algorithm) |
+    | ECDSA P-256 | Breakable by a CRQC with ~2000 logical qubits |
+    | AES-128 | Security halved by Grover's algorithm; still adequate for most uses |
+    | AES-256 | Grover-resistant at current threat levels |
+    | ML-KEM / ML-DSA | Post-quantum safe; scores 0 on this dimension |
+  </Accordion>
+
+  <Accordion title="Exposure Surface (0-25)">
+    This dimension measures how easily an adversary can observe and harvest the encrypted traffic this asset protects.
+
+    | Score range | Surface | Description |
+    |---|---|---|
+    | 20-25 | Internet-facing | TLS endpoints reachable by the public internet |
+    | 13-19 | Network-accessible | Internal services accessible from broad corporate networks |
+    | 6-12 | Restricted | Services behind VPN, private subnets, or network ACLs |
+    | 0-5 | Air-gapped or local | Encryption at rest on disks, local-only services |
+
+    Quanterios infers exposure from connector metadata (e.g. whether an ELB is internet-facing, whether a CloudFront distribution is public). You can override exposure level per asset.
+  </Accordion>
+
+  <Accordion title="Regulatory Pressure (0-25)">
+    This dimension reflects the urgency of compliance deadlines applicable to this asset. An asset in scope for a framework with a deadline 6 months away scores higher than the same asset with a deadline 4 years away.
+
+    Quanterios maps each asset to the applicable compliance frameworks based on your organization profile and asset metadata, then computes a deadline urgency score across all applicable frameworks.
+
+    See the [Compliance Engine](/risk-intelligence/compliance) for the full list of supported frameworks and how assets are mapped.
+  </Accordion>
+</AccordionGroup>
+
+## AI-generated briefings
+
+For every asset with an HNDL score above 40, Quanterios generates a plain-language AI briefing explaining the risk in terms a non-technical executive can understand. Briefings include:
+
+- A one-paragraph summary of why this asset is at risk
+- The specific algorithm weakness and its quantum vulnerability
+- The compliance frameworks it affects
+- A recommended next step
+
+Briefings are generated using the [HNDL API](/api-reference/hndl) and are included automatically in PDF board reports.

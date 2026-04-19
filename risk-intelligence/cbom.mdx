@@ -1,0 +1,139 @@
+---
+title: "Cryptographic Bill of Materials"
+description: "A complete, continuously updated inventory of every cryptographic asset in your organization. The CBOM is the foundation for HNDL scoring, compliance mapping, and migration planning."
+---
+
+<Info>
+  The CBOM API is fully documented in the [API Reference](/api-reference/cbom). You can query, filter, and bulk-import assets programmatically using standard REST calls.
+</Info>
+
+## What a CBOM is
+
+A Cryptographic Bill of Materials is an exhaustive inventory of every cryptographic primitive, protocol, and asset your organization uses. Where a software SBOM lists libraries and dependencies, a CBOM lists certificates, keys, algorithms, and the systems that depend on them.
+
+Quanterios builds and maintains your CBOM automatically from discovery scans. It is the single source of truth for all downstream capabilities: HNDL scoring, compliance gap analysis, migration planning, and board reports.
+
+## Asset types
+
+| Type | Description | Example sources |
+|---|---|---|
+| `tls_cert` | X.509 certificates used for TLS, including validity period, SANs, issuer chain, and key algorithm | ACM, Azure Key Vault, cert-manager, EJBCA |
+| `cloud_key` | Encryption keys managed by cloud KMS services, including algorithm, key spec, and rotation schedule | AWS KMS, Azure Key Vault, Cloud KMS |
+| `ssh_key` | SSH public keys, including algorithm, key size, authorized hosts, and last-used metadata | IAM access keys, LDAP, on-prem inventory |
+| `code_crypto_call` | Cryptographic API calls detected in source code, including file, line, function, and algorithm | Semgrep code scanner |
+
+## Asset metadata fields
+
+Every CBOM asset carries a common set of metadata fields regardless of type:
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | UUID | Stable asset identifier |
+| `asset_type` | enum | `tls_cert`, `cloud_key`, `ssh_key`, `code_crypto_call` |
+| `algorithm` | string | Cryptographic algorithm (e.g. `RSA-2048`, `ECDSA-P256`, `AES-256`) |
+| `source_connector` | string | The connector that discovered this asset |
+| `source_id` | string | The platform-native identifier (ARN, Key Vault URI, etc.) |
+| `discovered_at` | ISO 8601 | When the asset was first discovered |
+| `last_seen_at` | ISO 8601 | Most recent confirmation the asset still exists |
+| `hndl_score` | integer (0-100) | Current HNDL risk score |
+| `compliance_gaps` | array | List of framework IDs where this asset is non-compliant |
+| `tags` | object | Key-value pairs from the source platform |
+
+## Asset deduplication
+
+The same physical asset can appear across multiple connectors. For example, an ACM certificate may also surface in CloudFront and ELB connectors. Quanterios deduplicates by **fingerprint**: SHA-256 of the certificate DER encoding for `tls_cert`, platform-native key ID for `cloud_key`, and SHA-256 of the public key for `ssh_key`.
+
+Duplicates are merged into a single CBOM record with all source references listed under `source_refs`.
+
+## Per-type asset examples
+
+<Tabs>
+  <Tab title="tls_cert">
+    ```json
+    {
+      "id": "a1b2c3d4-0001-0001-0001-000000000001",
+      "asset_type": "tls_cert",
+      "algorithm": "RSA-2048",
+      "source_connector": "aws_acm",
+      "source_id": "arn:aws:acm:us-east-1:123456789012:certificate/abc123",
+      "subject_cn": "api.example.com",
+      "sans": ["api.example.com", "*.api.example.com"],
+      "issuer": "Amazon RSA 2048 M02",
+      "not_before": "2024-01-15T00:00:00Z",
+      "not_after": "2025-01-15T23:59:59Z",
+      "days_until_expiry": 271,
+      "hndl_score": 72,
+      "discovered_at": "2025-03-01T08:00:00Z",
+      "last_seen_at": "2025-04-17T08:00:00Z"
+    }
+    ```
+  </Tab>
+  <Tab title="cloud_key">
+    ```json
+    {
+      "id": "a1b2c3d4-0002-0002-0002-000000000002",
+      "asset_type": "cloud_key",
+      "algorithm": "RSA-3072",
+      "key_usage": "ENCRYPT_DECRYPT",
+      "source_connector": "aws_kms",
+      "source_id": "arn:aws:kms:us-east-1:123456789012:key/mrk-abc123",
+      "rotation_enabled": true,
+      "rotation_period_days": 365,
+      "key_state": "Enabled",
+      "hndl_score": 58,
+      "discovered_at": "2025-03-01T08:00:00Z",
+      "last_seen_at": "2025-04-17T08:00:00Z"
+    }
+    ```
+  </Tab>
+  <Tab title="ssh_key">
+    ```json
+    {
+      "id": "a1b2c3d4-0003-0003-0003-000000000003",
+      "asset_type": "ssh_key",
+      "algorithm": "RSA-2048",
+      "source_connector": "aws_iam",
+      "source_id": "AKIAIOSFODNN7EXAMPLE",
+      "iam_user": "ci-deploy",
+      "created_at": "2022-06-10T14:32:00Z",
+      "last_used_at": "2025-04-16T03:12:00Z",
+      "age_days": 1041,
+      "hndl_score": 65,
+      "discovered_at": "2025-03-01T08:00:00Z",
+      "last_seen_at": "2025-04-17T08:00:00Z"
+    }
+    ```
+  </Tab>
+  <Tab title="code_crypto_call">
+    ```json
+    {
+      "id": "a1b2c3d4-0004-0004-0004-000000000004",
+      "asset_type": "code_crypto_call",
+      "algorithm": "RSA-2048",
+      "source_connector": "semgrep",
+      "repository": "github.com/your-org/payments-service",
+      "file_path": "src/crypto/signing.py",
+      "line_number": 84,
+      "function_call": "rsa.generate_private_key(public_exponent=65537, key_size=2048)",
+      "language": "python",
+      "semgrep_rule_id": "quanterios.crypto.weak-rsa-key-size",
+      "hndl_score": 45,
+      "discovered_at": "2025-03-05T12:00:00Z",
+      "last_seen_at": "2025-04-17T08:00:00Z"
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Bulk import via API
+
+If you have an existing asset inventory (from a previous tool or a manual audit), you can bulk-import assets via the CBOM API. Imported assets are merged with discovered assets using the same deduplication logic.
+
+```bash
+curl -X POST https://api.quanterios.com/v1/cbom/bulk \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"assets": [...]}'
+```
+
+See the [CBOM API Reference](/api-reference/cbom) for the full schema and bulk import limits.

@@ -1,0 +1,71 @@
+---
+title: "Azure Connectors"
+description: "8 read-only connectors covering Azure Key Vault, App Service, Application Gateway, Cosmos DB, Entra ID Apps, Storage, SQL Database, and Front Door."
+---
+
+<Info>
+  Azure connectors use a single **service principal** with the built-in Reader role. One service principal covers all 8 connectors across all subscriptions you grant access to.
+</Info>
+
+## Connector reference
+
+| Connector | What Quanterios discovers | API used |
+|---|---|---|
+| **Key Vault** | Keys (algorithm, key size, expiry, rotation policy) and certificates (algorithm, SANs, issuer, expiry) | `Microsoft.KeyVault/vaults`, `Microsoft.KeyVault/vaults/keys`, `Microsoft.KeyVault/vaults/certificates` |
+| **App Service** | Bound TLS certificates, minimum TLS version, HTTPS-only enforcement | `Microsoft.Web/sites`, `Microsoft.Web/certificates` |
+| **Application Gateway** | TLS listener configurations, SSL policy, cipher suite selection | `Microsoft.Network/applicationGateways` |
+| **Cosmos DB** | Default consistency, encryption at rest key type, CMK configuration | `Microsoft.DocumentDB/databaseAccounts` |
+| **Entra ID Apps** | Application credential metadata (key credentials, password credentials, expiry) | `Microsoft Graph /applications` |
+| **Storage** | Encryption type (Microsoft-managed vs. CMK), KMS key version, infrastructure encryption | `Microsoft.Storage/storageAccounts` |
+| **SQL Database** | Transparent Data Encryption (TDE) status, TDE protector key type | `Microsoft.Sql/servers/databases`, `Microsoft.Sql/servers/encryptionProtector` |
+| **Front Door** | Custom domain TLS certificates, minimum TLS version, HTTPS redirect | `Microsoft.Cdn/profiles` |
+
+## Setup
+
+<Steps>
+  <Step title="Create the service principal">
+    Run the following Azure CLI commands to create a service principal for Quanterios. Note the `appId`, `password`, and `tenant` values from the output.
+
+    <CodeGroup>
+    ```bash Azure CLI
+    az ad sp create-for-rbac \
+      --name "quanterios-discovery" \
+      --role Reader \
+      --scopes /subscriptions/YOUR_SUBSCRIPTION_ID \
+      --output json
+    ```
+    ```bash Multiple Subscriptions
+    # Repeat the role assignment for each subscription you want to scan
+    az role assignment create \
+      --assignee YOUR_SP_APP_ID \
+      --role Reader \
+      --scope /subscriptions/SECOND_SUBSCRIPTION_ID
+    ```
+    </CodeGroup>
+  </Step>
+  <Step title="Grant Microsoft Graph permissions (Entra ID Apps connector)">
+    The Entra ID Apps connector requires an additional Microsoft Graph API permission. Grant it with the following command, then have a Global Administrator consent to it in the Azure portal.
+
+    ```bash
+    az ad app permission add \
+      --id YOUR_SP_APP_ID \
+      --api 00000003-0000-0000-c000-000000000000 \
+      --api-permissions e1fe6dd8-ba31-4d61-89e7-88639da4683d=Role
+
+    az ad app permission admin-consent --id YOUR_SP_APP_ID
+    ```
+  </Step>
+  <Step title="Provide credentials to Quanterios">
+    In the Quanterios dashboard, add an Azure connector and enter the following values from the service principal output:
+
+    - **Tenant ID** (`tenant` from the CLI output)
+    - **Client ID** (`appId` from the CLI output)
+    - **Client Secret** (`password` from the CLI output)
+
+    Quanterios encrypts the client secret immediately and never exposes it after initial entry.
+  </Step>
+</Steps>
+
+<Warning>
+  The `az ad sp create-for-rbac` command prints the client secret once. Store it securely before running the next step. If you lose it, generate a new secret with `az ad app credential reset --id YOUR_SP_APP_ID`.
+</Warning>

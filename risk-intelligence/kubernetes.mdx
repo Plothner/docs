@@ -1,0 +1,98 @@
+---
+title: "Kubernetes"
+description: "4 read-only connectors covering TLS Secrets, Ingress Controllers, Service Mesh mTLS certificates, and cert-manager issuers."
+---
+
+<Warning>
+  Cluster-admin is **not required**. Quanterios uses a dedicated ServiceAccount with a minimal ClusterRole scoped to read-only access on the specific resource types it needs. Granting cluster-admin would be overly permissive and is actively discouraged.
+</Warning>
+
+## Connector reference
+
+| Connector | What Quanterios discovers | Resources read |
+|---|---|---|
+| **TLS Secrets** | Kubernetes Secrets of type `kubernetes.io/tls`: certificate algorithm, key size, expiry, namespace, associated workloads | `secrets` (type filter: `kubernetes.io/tls`) |
+| **Ingress Controllers** | Ingress resources with TLS configuration: hostnames, certificate Secret references, TLS termination config | `ingresses` (all namespaces) |
+| **Service Mesh** | Istio/Linkerd mTLS certificates: mesh CA algorithm, peer authentication policies, certificate rotation interval | `PeerAuthentication`, `DestinationRule` (Istio); `Server` resources (Linkerd) |
+| **cert-manager** | Issuers, ClusterIssuers, Certificate resources: algorithm, key size, renewal window, ACME/Vault/CA issuer type | `certificates.cert-manager.io`, `issuers.cert-manager.io`, `clusterissuers.cert-manager.io` |
+
+## Setup
+
+<Steps>
+  <Step title="Apply the Quanterios RBAC manifest">
+    Apply the following manifest to your cluster. It creates a ServiceAccount, ClusterRole, and ClusterRoleBinding with the minimum required permissions.
+
+    ```yaml
+    apiVersion: v1
+    kind: ServiceAccount
+    metadata:
+      name: quanterios-discovery
+      namespace: kube-system
+    ---
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRole
+    metadata:
+      name: quanterios-discovery
+    rules:
+      - apiGroups: [""]
+        resources: ["secrets"]
+        verbs: ["list", "get"]
+      - apiGroups: ["networking.k8s.io"]
+        resources: ["ingresses"]
+        verbs: ["list", "get"]
+      - apiGroups: ["cert-manager.io"]
+        resources: ["certificates", "issuers", "clusterissuers"]
+        verbs: ["list", "get"]
+      - apiGroups: ["security.istio.io", "networking.istio.io"]
+        resources: ["peerauthentications", "destinationrules"]
+        verbs: ["list", "get"]
+    ---
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRoleBinding
+    metadata:
+      name: quanterios-discovery
+    subjects:
+      - kind: ServiceAccount
+        name: quanterios-discovery
+        namespace: kube-system
+    roleRef:
+      kind: ClusterRole
+      name: quanterios-discovery
+      apiGroup: rbac.authorization.k8s.io
+    ```
+  </Step>
+  <Step title="Extract the ServiceAccount token">
+    ```bash
+    kubectl create token quanterios-discovery \
+      -n kube-system \
+      --duration=8760h \
+      --output json | jq -r '.status.token'
+    ```
+
+    For clusters running Kubernetes 1.23 or older, create a long-lived token Secret instead:
+
+    ```bash
+    kubectl create secret generic quanterios-token \
+      -n kube-system \
+      --type=kubernetes.io/service-account-token \
+      --from-literal=extra-annotation='' \
+      --dry-run=client -o yaml | \
+      kubectl annotate --local -f - \
+      kubernetes.io/service-account.name=quanterios-discovery \
+      -o yaml | kubectl apply -f -
+    ```
+  </Step>
+  <Step title="Add the connector in Quanterios">
+    In the Quanterios dashboard, add a Kubernetes connector. Provide:
+
+    - **API Server URL** (e.g. `https://your-cluster.example.com:6443`)
+    - **CA certificate** (base64-encoded cluster CA)
+    - **ServiceAccount token** from the previous step
+
+    Alternatively, upload your `kubeconfig` file directly and Quanterios will extract the necessary fields.
+  </Step>
+</Steps>
+
+<Note>
+  If cert-manager is not installed in your cluster, the cert-manager connector simply returns no assets. There is no error and no impact on other connectors.
+</Note>

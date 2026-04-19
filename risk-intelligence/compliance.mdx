@@ -1,0 +1,116 @@
+---
+title: "Compliance Engine"
+description: "Gap analysis against 13 cryptographic compliance frameworks. Deadline tracking, per-asset compliance status, and regional groupings for CNSA 2.0, NIS2, PCI DSS 4.0, GDPR, and more."
+---
+
+<Info>
+  The Compliance Engine maps every CBOM asset against the frameworks applicable to your organization. You can enable or disable individual frameworks in the Quanterios dashboard.
+</Info>
+
+## Supported frameworks
+
+<Tabs>
+  <Tab title="United States">
+    | Framework | Category | Focus |
+    |---|---|---|
+    | **CNSA 2.0** | Federal / NSA | Post-quantum algorithm transition for national security systems |
+    | **NIST PQC** | Federal / NIST | Post-quantum cryptography standards (ML-KEM, ML-DSA, SLH-DSA) |
+    | **FIPS 140-3** | Federal / NIST | Cryptographic module validation |
+    | **FedRAMP** | Federal / GSA | Cloud service security for federal agencies |
+    | **HIPAA** | Healthcare | Protection of electronic protected health information |
+  </Tab>
+  <Tab title="European Union">
+    | Framework | Category | Focus |
+    |---|---|---|
+    | **NIS2** | EU Directive | Network and information security for critical infrastructure operators |
+    | **GDPR** | EU Regulation | Personal data protection including encryption requirements |
+    | **DORA** | EU Regulation | Digital operational resilience for financial entities |
+    | **eIDAS 2** | EU Regulation | Electronic identity and trust services |
+  </Tab>
+  <Tab title="Global and Industry">
+    | Framework | Category | Focus |
+    |---|---|---|
+    | **PCI DSS 4.0** | Payment industry | Payment card data security including TLS requirements |
+    | **ISO 27001:2022** | Global standard | Information security management |
+    | **SOC 2** | US / global | Trust service criteria for service organizations |
+    | **CCPA** | California / US | Consumer privacy including data security requirements |
+  </Tab>
+</Tabs>
+
+## How gap analysis works
+
+The Compliance Engine evaluates each CBOM asset against the rules of each enabled framework. Rules encode requirements such as:
+
+- Minimum TLS version (e.g. PCI DSS 4.0 requires TLS 1.2+, CNSA 2.0 requires TLS 1.3+)
+- Allowed algorithms (e.g. CNSA 2.0 prohibits RSA below 3072-bit for new deployments)
+- Key rotation requirements (e.g. FIPS 140-3 rotation periods)
+- Post-quantum algorithm adoption timelines
+
+For each asset-framework pair, Quanterios returns one of four statuses:
+
+| Status | Meaning |
+|---|---|
+| `compliant` | Asset meets all requirements of this framework |
+| `gap` | Asset fails one or more specific requirements |
+| `deadline_approaching` | Asset is currently compliant but will become non-compliant before the framework deadline |
+| `not_applicable` | This framework does not apply to this asset |
+
+## Deadline tracking
+
+Quanterios maintains a deadline calendar for each enabled framework. When a compliance deadline is within 90 days, affected assets are flagged with `deadline_approaching` status and surfaced in dashboard alerts, weekly digests, and the portfolio PDF report.
+
+Framework deadlines are updated as guidance evolves. You will receive a dashboard notification and email when a deadline changes.
+
+## Key framework requirements
+
+<AccordionGroup>
+  <Accordion title="CNSA 2.0">
+    The Commercial National Security Algorithm Suite 2.0, published by the NSA in 2022, mandates a specific migration timeline for national security systems and their suppliers.
+
+    **Key requirements for Quanterios:**
+    - RSA and ECDSA must be replaced with ML-DSA or SLH-DSA for digital signatures by 2030
+    - RSA and ECDH key establishment must be replaced with ML-KEM by 2030
+    - AES-256 is the only approved symmetric algorithm; AES-128 must be replaced
+    - TLS 1.3 is required; TLS 1.2 is deprecated
+    - SHA-384 or SHA-512 required; SHA-256 permitted only as a transition measure
+
+    Assets are flagged as `gap` if they use RSA below 3072-bit, ECDSA P-256 for signing, AES-128, or TLS 1.2 or older.
+  </Accordion>
+
+  <Accordion title="NIS2">
+    The Network and Information Security Directive 2 applies to operators of essential services and important entities in the EU. It requires state-of-the-art cryptographic controls and incident reporting.
+
+    **Key requirements for Quanterios:**
+    - Use of cryptography must follow current best practices (references ENISA guidelines)
+    - TLS 1.3 preferred; TLS 1.2 with forward secrecy acceptable in transition
+    - RSA-2048 is approaching the boundary of acceptable for high-risk services
+    - Organizations must maintain a cryptographic asset inventory (the CBOM satisfies this requirement)
+    - Member states are expected to mandate PQC migration timelines by 2025-2026
+
+    Quanterios tracks ENISA guideline updates and adjusts gap rules accordingly.
+  </Accordion>
+
+  <Accordion title="PCI DSS 4.0">
+    PCI DSS 4.0, effective March 2024, introduces several cryptography-specific requirements beyond the TLS 1.2 minimum.
+
+    **Key requirements for Quanterios:**
+    - TLS 1.2 is the hard minimum; TLS 1.0 and 1.1 are prohibited
+    - Strong cryptography required for all cardholder data transmissions (AES-128 minimum, AES-256 recommended)
+    - Certificate validity, algorithm strength, and cipher suite strength are all in scope
+    - Requirement 12.3.3 mandates a cryptographic inventory: the CBOM directly satisfies this
+
+    Assets in PCI scope (tagged or inferred from connector metadata) are evaluated against PCI rules specifically. Out-of-scope assets show `not_applicable`.
+  </Accordion>
+
+  <Accordion title="GDPR">
+    GDPR does not mandate specific algorithms by name but requires that personal data be protected using appropriate technical measures, including encryption that reflects the state of the art.
+
+    **Key requirements for Quanterios:**
+    - Encryption of personal data at rest and in transit is expected as a baseline measure
+    - Algorithm selection must reflect "state of the art" at the time of implementation
+    - Data controllers must be able to demonstrate the measures in place (the CBOM and reports support this)
+    - Pseudonymization and encryption are specifically mentioned in Recital 83 and Article 32
+
+    Quanterios flags RSA-1024, DES, 3DES, RC4, and MD5 as gaps for any asset handling personal data. Assets are tagged as in-scope for GDPR based on your organization profile or manual tagging.
+  </Accordion>
+</AccordionGroup>

@@ -1,0 +1,51 @@
+---
+title: "Asset Discovery"
+description: "Agentless, API-based scanning across 40 connectors. Quanterios reads your infrastructure using read-only credentials and builds a complete cryptographic inventory without touching production workloads."
+---
+
+<Info>
+  Discovery is **entirely agentless**. Quanterios calls cloud provider APIs and on-premises endpoints using read-only credentials. Nothing is installed in your environment, and no production process is modified or restarted.
+</Info>
+
+## How discovery works
+
+Quanterios uses the native APIs of each platform to enumerate cryptographic assets. For cloud providers this means API calls with read-only IAM or service account credentials. For on-premises systems it means secure API connections to PKI managers, LDAP directories, and source code repositories.
+
+Discovery runs on first connection, then on a configurable schedule (default: every 24 hours). You can also trigger a manual scan at any time from the dashboard or via the API.
+
+## Connector summary
+
+| Platform | Connectors | Asset types discovered |
+|---|---|---|
+| [AWS](/risk-intelligence/aws) | 12 | Certificates, encryption keys, TLS configs, bucket policies, connection encryption |
+| [Azure](/risk-intelligence/azure) | 8 | Key Vault keys and certs, TLS listeners, app registrations, database encryption |
+| [GCP](/risk-intelligence/gcp) | 8 | KMS keys, managed certificates, cluster certs, CMEK configs |
+| [Kubernetes](/risk-intelligence/kubernetes) | 4 | TLS Secrets, Ingress TLS, service mesh mTLS, cert-manager issuers |
+| [On-Premises](/risk-intelligence/on-prem) | 8 | PKI certificates, LDAP stores, code crypto calls, database TLS |
+| **Total** | **40** | |
+
+<CardGroup cols={2}>
+  <Card title="AWS" icon="aws" href="/risk-intelligence/aws">
+    12 connectors covering ACM, KMS, CloudFront, S3, RDS, ELB, Lambda, DynamoDB, EBS, Secrets Manager, IAM, and API Gateway.
+  </Card>
+  <Card title="Azure" icon="microsoft" href="/risk-intelligence/azure">
+    8 connectors covering Key Vault, App Service, Application Gateway, Cosmos DB, Entra ID Apps, Storage, SQL Database, and Front Door.
+  </Card>
+  <Card title="GCP" icon="google" href="/risk-intelligence/gcp">
+    8 connectors covering Cloud KMS, Certificate Manager, Load Balancer, Cloud SQL, GKE, Cloud Storage, Compute Engine, and Secret Manager.
+  </Card>
+  <Card title="Kubernetes" icon="dharmachakra" href="/risk-intelligence/kubernetes">
+    4 connectors covering TLS Secrets, Ingress Controllers, Service Mesh mTLS, and cert-manager.
+  </Card>
+  <Card title="On-Premises" icon="server" href="/risk-intelligence/on-prem">
+    8 connectors covering Venafi, EJBCA, LDAP, Semgrep code scanning, MySQL, and PostgreSQL.
+  </Card>
+</CardGroup>
+
+## Asset deduplication
+
+The same certificate or key may appear in multiple connectors. For example, an ACM certificate may also be attached to a CloudFront distribution and a load balancer. Quanterios deduplicates assets by fingerprint (certificate SHA-256, KMS key ARN, etc.) so each physical asset appears exactly once in your CBOM, with all associated resources linked as references.
+
+## Discovery permissions model
+
+All connectors use the **principle of least privilege**. Each platform section documents the exact permissions required. Quanterios never requests write permissions, and credentials are stored encrypted at rest using AES-256-GCM.

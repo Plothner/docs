@@ -1,0 +1,109 @@
+---
+title: "Board Reports"
+description: "PDF reports rendered in seconds via Typst. Three report types: Portfolio Report, Per-Asset Migration Report, and HNDL Risk Briefing. No browser required."
+---
+
+<Info>
+  Reports are rendered server-side using **Typst**, a modern typesetting engine. No headless browser, no Puppeteer, no Chromium. Reports are typically ready within 3 seconds of request.
+</Info>
+
+## Report types
+
+<CardGroup cols={3}>
+  <Card title="Portfolio Report" icon="chart-pie">
+    Tenant-wide summary for board presentations and executive reviews. Includes compliance timeline chart, total asset counts by severity, cost aggregate for remediation, and top 10 critical assets.
+  </Card>
+  <Card title="Per-Asset Migration Report" icon="file-lines">
+    Detailed single-asset report for engineering teams. Includes breakage risk assessment, recommended migration playbook, estimated migration effort, and business impact analysis.
+  </Card>
+  <Card title="HNDL Risk Briefing" icon="memo-circle-check">
+    One-page executive summary for a single asset. Explains the HNDL risk in plain language, lists affected compliance frameworks, and gives a clear recommended action. Designed to be printed and shared with non-technical stakeholders.
+  </Card>
+</CardGroup>
+
+## Portfolio Report
+
+The Portfolio Report gives executives and board members a complete picture of the organization's quantum cryptography risk posture. It is designed to be included in quarterly risk reviews and board presentations without modification.
+
+**Contents:**
+
+| Section | Description |
+|---|---|
+| Executive Summary | One-page risk posture summary with critical/high/medium/low asset counts and a trend vs. last quarter |
+| Compliance Timeline | Visual chart showing compliance deadlines for all enabled frameworks and the organization's current gap trajectory |
+| Asset Inventory Summary | Breakdown of CBOM assets by type, algorithm, and platform |
+| Critical Assets Table | Top 10 assets by HNDL score with plain-language risk descriptions |
+| Cost Aggregate | Estimated total remediation cost across all high and critical assets |
+| Recommended Actions | Prioritized list of the 5 highest-impact actions to reduce portfolio risk |
+
+## Per-Asset Migration Report
+
+The Per-Asset Migration Report is designed for engineering teams who need to plan and execute a specific migration. It contains everything needed to scope, estimate, and deliver the work.
+
+**Contents:**
+
+- Asset identification and current cryptographic configuration
+- HNDL score breakdown showing contribution from each dimension
+- Breakage risk assessment: which dependent systems may be affected by migration
+- Recommended migration playbook (links to the Migration Intelligence module)
+- Estimated migration effort in person-days
+- Compliance frameworks impacted and deadline urgency
+
+## HNDL Risk Briefing
+
+The HNDL Risk Briefing is a single-page PDF designed for rapid stakeholder communication. It is generated from the AI-written briefing for the asset and formatted for non-technical readers.
+
+**Contents:**
+
+- Asset name and plain-language description (e.g. "TLS certificate protecting your customer API")
+- HNDL score with severity label and color
+- One-paragraph plain-language risk explanation
+- The relevant compliance frameworks and their deadlines
+- A single recommended action
+
+## How to generate reports
+
+<Tabs>
+  <Tab title="Dashboard">
+    1. Navigate to **Reports** in the left sidebar.
+    2. Select the report type.
+    3. For Portfolio Reports, click **Generate Portfolio Report**. The report is ready in the browser within a few seconds.
+    4. For Per-Asset or HNDL Briefing reports, search for the asset by name or filter by severity, then click **Generate Report** on the asset detail page.
+    5. Download as PDF or share a time-limited link with stakeholders.
+  </Tab>
+  <Tab title="API">
+    ```bash Portfolio Report
+    curl -X POST https://api.quanterios.com/v1/reports/portfolio \
+      -H "Authorization: Bearer YOUR_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{"format": "pdf"}' \
+      --output portfolio-report.pdf
+    ```
+    ```bash Per-Asset Report
+    curl -X POST https://api.quanterios.com/v1/reports/asset \
+      -H "Authorization: Bearer YOUR_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "asset_id": "a1b2c3d4-0001-0001-0001-000000000001",
+        "report_type": "migration",
+        "format": "pdf"
+      }' \
+      --output asset-report.pdf
+    ```
+    ```bash HNDL Briefing
+    curl -X POST https://api.quanterios.com/v1/reports/asset \
+      -H "Authorization: Bearer YOUR_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "asset_id": "a1b2c3d4-0001-0001-0001-000000000001",
+        "report_type": "briefing",
+        "format": "pdf"
+      }' \
+      --output hndl-briefing.pdf
+    ```
+  </Tab>
+</Tabs>
+
+<Note>
+  Report generation via the API is synchronous for small reports (under 50 assets) and asynchronous for large portfolio reports. The API returns a `job_id` for async reports. Poll `GET /v1/reports/jobs/{job_id}` to check status and retrieve the download URL.
+</Note>

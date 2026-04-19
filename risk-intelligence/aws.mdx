@@ -1,0 +1,107 @@
+---
+title: "AWS Connectors"
+description: "12 read-only connectors covering the full breadth of AWS cryptographic assets, from ACM certificates to KMS keys to database connection encryption."
+---
+
+<Info>
+  All AWS connectors use a single cross-account IAM role with read-only permissions. One role, one setup, full coverage.
+</Info>
+
+## Connector reference
+
+| Connector | What Quanterios discovers | Required permissions |
+|---|---|---|
+| **ACM** | Certificate metadata, algorithm, key size, expiry, SANs, renewal status | `acm:ListCertificates`, `acm:DescribeCertificate` |
+| **KMS** | Key metadata, algorithm, key spec, rotation status, key policy | `kms:ListKeys`, `kms:DescribeKey`, `kms:GetKeyRotationStatus` |
+| **CloudFront** | Distribution TLS policy, minimum protocol version, viewer certificate | `cloudfront:ListDistributions`, `cloudfront:GetDistribution` |
+| **S3** | Bucket default encryption algorithm, KMS key reference, bucket policy | `s3:ListAllMyBuckets`, `s3:GetBucketEncryption`, `s3:GetBucketPolicy` |
+| **RDS** | Instance connection encryption (SSL enforcement), certificate authority in use | `rds:DescribeDBInstances`, `rds:DescribeDBClusters` |
+| **ELB** | Load balancer TLS policy, HTTPS listener cipher suites | `elasticloadbalancing:DescribeLoadBalancers`, `elasticloadbalancing:DescribeListeners`, `elasticloadbalancing:DescribeSSLPolicies` |
+| **Lambda** | Environment variable encryption (KMS key reference), in-transit TLS | `lambda:ListFunctions`, `lambda:GetFunctionConfiguration` |
+| **DynamoDB** | Table encryption type, KMS key reference, encryption at rest status | `dynamodb:ListTables`, `dynamodb:DescribeTable` |
+| **EBS** | Volume encryption status, KMS key reference | `ec2:DescribeVolumes` |
+| **Secrets Manager** | Secret metadata, encryption KMS key, rotation configuration | `secretsmanager:ListSecrets`, `secretsmanager:DescribeSecret` |
+| **IAM** | Access key metadata, age, last-used date | `iam:ListUsers`, `iam:ListAccessKeys`, `iam:GetAccessKeyLastUsed` |
+| **API Gateway** | API minimum TLS version, custom domain TLS policy | `apigateway:GET` |
+
+## Setup
+
+<Steps>
+  <Step title="Create the IAM policy">
+    Create a customer-managed IAM policy in your AWS account using the JSON below. This policy grants the exact read-only permissions required and nothing more.
+    <CodeGroup>
+    ```json IAM Policy JSON
+    {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Sid": "QuanteriosCryptoDiscovery",
+          "Effect": "Allow",
+          "Action": [
+            "acm:ListCertificates",
+            "acm:DescribeCertificate",
+            "kms:ListKeys",
+            "kms:DescribeKey",
+            "kms:GetKeyRotationStatus",
+            "cloudfront:ListDistributions",
+            "cloudfront:GetDistribution",
+            "s3:ListAllMyBuckets",
+            "s3:GetBucketEncryption",
+            "s3:GetBucketPolicy",
+            "rds:DescribeDBInstances",
+            "rds:DescribeDBClusters",
+            "elasticloadbalancing:DescribeLoadBalancers",
+            "elasticloadbalancing:DescribeListeners",
+            "elasticloadbalancing:DescribeSSLPolicies",
+            "lambda:ListFunctions",
+            "lambda:GetFunctionConfiguration",
+            "dynamodb:ListTables",
+            "dynamodb:DescribeTable",
+            "ec2:DescribeVolumes",
+            "secretsmanager:ListSecrets",
+            "secretsmanager:DescribeSecret",
+            "iam:ListUsers",
+            "iam:ListAccessKeys",
+            "iam:GetAccessKeyLastUsed",
+            "apigateway:GET"
+          ],
+          "Resource": "*"
+        }
+      ]
+    }
+    ```
+    </CodeGroup>
+  </Step>
+  <Step title="Create the IAM role">
+    Create an IAM role that trusts the Quanterios AWS account. Attach the policy you created in the previous step.
+
+    ```bash
+    aws iam create-role \
+      --role-name QuanteriosDiscovery \
+      --assume-role-policy-document '{
+        "Version": "2012-10-17",
+        "Statement": [{
+          "Effect": "Allow",
+          "Principal": { "AWS": "arn:aws:iam::123456789012:root" },
+          "Action": "sts:AssumeRole",
+          "Condition": {
+            "StringEquals": { "sts:ExternalId": "YOUR_EXTERNAL_ID" }
+          }
+        }]
+      }'
+
+    aws iam attach-role-policy \
+      --role-name QuanteriosDiscovery \
+      --policy-arn arn:aws:iam::YOUR_ACCOUNT:policy/QuanteriosCryptoDiscovery
+    ```
+  </Step>
+  <Step title="Provide the role ARN to Quanterios">
+    Copy the role ARN and paste it into the AWS connector configuration in the Quanterios dashboard. Quanterios will verify the connection by performing a test `sts:AssumeRole` call before saving.
+
+    The role ARN format is: `arn:aws:iam::YOUR_ACCOUNT_ID:role/QuanteriosDiscovery`
+  </Step>
+</Steps>
+
+<Warning>
+  Replace `123456789012` with the Quanterios AWS account ID provided in your onboarding email, and replace `YOUR_EXTERNAL_ID` with the external ID shown in the Quanterios dashboard for your tenant.
+</Warning>

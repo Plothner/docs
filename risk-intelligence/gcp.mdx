@@ -1,0 +1,83 @@
+---
+title: "GCP Connectors"
+description: "8 read-only connectors covering Cloud KMS, Certificate Manager, Load Balancer, Cloud SQL, GKE, Cloud Storage, Compute Engine, and Secret Manager."
+---
+
+<Info>
+  GCP connectors use a single **service account** with the built-in `roles/viewer` role plus two additional roles for KMS and Secret Manager metadata. No key material is ever read.
+</Info>
+
+## Connector reference
+
+| Connector | What Quanterios discovers | GCP API |
+|---|---|---|
+| **Cloud KMS** | Key rings, keys, key versions (algorithm, protection level, rotation schedule, state) | `cloudkms.googleapis.com` |
+| **Certificate Manager** | Managed certificates (algorithm, domain, expiry, provisioning state) | `certificatemanager.googleapis.com` |
+| **Load Balancer** | Frontend TLS policies, SSL certificates, minimum TLS version | `compute.googleapis.com` (TargetHttpsProxies, SslPolicies) |
+| **Cloud SQL** | Instance SSL mode, server certificate expiry, client certificate inventory | `sqladmin.googleapis.com` |
+| **GKE** | Cluster certificates, master auth config, workload identity, secret encryption (CMEK) | `container.googleapis.com` |
+| **Cloud Storage** | Bucket default KMS key, encryption type (Google-managed vs. CMEK) | `storage.googleapis.com` |
+| **Compute Engine** | Disk encryption type, CMEK key reference, guest OS metadata | `compute.googleapis.com` (Disks) |
+| **Secret Manager** | Secret metadata, replication policy, encryption key reference | `secretmanager.googleapis.com` |
+
+## Setup
+
+<Steps>
+  <Step title="Create the service account">
+    <CodeGroup>
+    ```bash Create Service Account
+    gcloud iam service-accounts create quanterios-discovery \
+      --display-name="Quanterios Discovery" \
+      --project=YOUR_PROJECT_ID
+    ```
+    ```bash Grant Required Roles
+    # Base viewer role
+    gcloud projects add-iam-policy-binding YOUR_PROJECT_ID \
+      --member="serviceAccount:quanterios-discovery@YOUR_PROJECT_ID.iam.gserviceaccount.com" \
+      --role="roles/viewer"
+
+    # Cloud KMS metadata access
+    gcloud projects add-iam-policy-binding YOUR_PROJECT_ID \
+      --member="serviceAccount:quanterios-discovery@YOUR_PROJECT_ID.iam.gserviceaccount.com" \
+      --role="roles/cloudkms.viewer"
+
+    # Secret Manager metadata access (not the secret values)
+    gcloud projects add-iam-policy-binding YOUR_PROJECT_ID \
+      --member="serviceAccount:quanterios-discovery@YOUR_PROJECT_ID.iam.gserviceaccount.com" \
+      --role="roles/secretmanager.viewer"
+    ```
+    </CodeGroup>
+  </Step>
+  <Step title="Enable required APIs">
+    Make sure the relevant APIs are enabled in your project. Quanterios will report a clear error during connection verification if any are missing.
+
+    ```bash
+    gcloud services enable \
+      cloudkms.googleapis.com \
+      certificatemanager.googleapis.com \
+      sqladmin.googleapis.com \
+      container.googleapis.com \
+      secretmanager.googleapis.com \
+      --project=YOUR_PROJECT_ID
+    ```
+  </Step>
+  <Step title="Create and download a service account key">
+    ```bash
+    gcloud iam service-accounts keys create quanterios-key.json \
+      --iam-account=quanterios-discovery@YOUR_PROJECT_ID.iam.gserviceaccount.com
+
+    # Upload this file in the Quanterios dashboard GCP connector setup
+    # Delete the local copy after uploading
+    rm quanterios-key.json
+    ```
+  </Step>
+  <Step title="Add the connector in Quanterios">
+    In the Quanterios dashboard, add a GCP connector. Upload the service account key JSON file. Quanterios verifies connectivity and lists discovered projects before saving.
+
+    For **Workload Identity Federation** (no key files), contact support for the federation setup guide.
+  </Step>
+</Steps>
+
+<Note>
+  Quanterios never reads actual secret values from Secret Manager or actual key material from Cloud KMS. Only metadata (key names, algorithms, rotation schedules) is retrieved.
+</Note>

@@ -1,0 +1,109 @@
+---
+title: "On-Premises"
+description: "8 connectors for on-premises infrastructure: PKI managers (Venafi, EJBCA), LDAP certificate stores, code scanning with Semgrep, and database TLS configuration."
+---
+
+<Info>
+  The **Code Scanner** connector uses Semgrep to detect cryptographic API calls across your source code repositories. It identifies algorithm names, key sizes, and deprecated function calls in 20+ languages without executing any code.
+</Info>
+
+## Connector reference
+
+| Connector | What Quanterios discovers |
+|---|---|
+| **Venafi** | Certificates managed by Venafi Trust Protection Platform: algorithm, key size, expiry, policy folder, issuing CA |
+| **EJBCA** | Certificates issued by EJBCA: algorithm, end-entity profiles, CA hierarchy |
+| **LDAP** | Certificates stored in `userCertificate` and `cACertificate` attributes: algorithm, expiry, associated DN |
+| **Code Scanner (Semgrep)** | Cryptographic API calls in source code: algorithm names, deprecated functions, hard-coded key material |
+| **MySQL** | `ssl_type` per user, `have_ssl` server variable, `tls_version` configuration |
+| **PostgreSQL** | `ssl` connection parameter, `ssl_cert_file`, `ssl_key_file`, `ssl_min_protocol_version` |
+
+<AccordionGroup>
+  <Accordion title="Venafi">
+    **Prerequisites:** Venafi Trust Protection Platform 21.x or later. An API Application Integration user with read access to the certificate folders you want to scan.
+
+    **Setup:**
+    1. In the Venafi console, create an API Application Integration under **Platform > API Application Integrations**.
+    2. Grant the integration account read access to the certificate policy folders you want Quanterios to scan.
+    3. Note the **Grant ID** and generate an **API key**.
+    4. In the Quanterios dashboard, add a Venafi connector with:
+       - **Base URL** (e.g. `https://venafi.your-org.com/vedsdk`)
+       - **API key**
+
+    Quanterios calls the `POST /certificates/retrieve` and `GET /certificates` endpoints only.
+  </Accordion>
+
+  <Accordion title="EJBCA">
+    **Prerequisites:** EJBCA Community 7.x or Enterprise 8.x. A read-only administrator role with access to the CAs and end-entity profiles you want to scan.
+
+    **Setup:**
+    1. Create a read-only admin role in EJBCA with `CA: Read` and `End Entity: View` permissions.
+    2. Issue a client certificate for this admin role and export it as PKCS#12.
+    3. In the Quanterios dashboard, add an EJBCA connector with:
+       - **EJBCA REST API URL** (e.g. `https://ejbca.your-org.com/ejbca/ejbcaws/ejbcaws`)
+       - **Client certificate** (PEM format)
+       - **Client certificate private key** (PEM format)
+  </Accordion>
+
+  <Accordion title="LDAP">
+    **Prerequisites:** Any LDAP-compatible directory (OpenLDAP, Active Directory, 389 Directory Server). A read-only bind account.
+
+    **Setup:**
+    1. Create a read-only service account in your directory.
+    2. Grant read access to the `userCertificate` and `cACertificate` attributes on the OUs you want to scan.
+    3. In the Quanterios dashboard, add an LDAP connector with:
+       - **Host and port** (e.g. `ldaps://ldap.your-org.com:636`)
+       - **Bind DN** (e.g. `cn=quanterios,ou=service-accounts,dc=your-org,dc=com`)
+       - **Bind password**
+       - **Search base DN**
+
+    Quanterios supports both `ldap://` (port 389) and `ldaps://` (port 636). Plain LDAP is supported for internal networks where TLS is handled at the network layer.
+  </Accordion>
+
+  <Accordion title="Code Scanner (Semgrep)">
+    **Prerequisites:** Git repository accessible via HTTPS or SSH. Quanterios runs Semgrep in a sandboxed environment; no code is permanently stored.
+
+    **What is scanned:**
+    - Explicit algorithm strings: `"RSA"`, `"AES-128-CBC"`, `"MD5"`, `"SHA1"`, etc.
+    - Deprecated function calls: `DES_encrypt`, `RC4_set_key`, `MD5_Init`, etc.
+    - Hard-coded key material (entropy-based detection)
+    - Library imports: `crypto/md5`, `java.security.MessageDigest`, `Cryptodome.Cipher.DES`, etc.
+
+    **Setup:**
+    1. In the Quanterios dashboard, add a Code Scanner connector.
+    2. Provide repository access via:
+       - **GitHub/GitLab/Bitbucket** OAuth (reuses your Crypto Debt Firewall connection if already configured)
+       - **HTTPS clone URL** with a personal access token
+       - **SSH clone URL** with a deploy key
+    3. Select which branches to scan (default: default branch only).
+  </Accordion>
+
+  <Accordion title="MySQL">
+    **Prerequisites:** MySQL 5.7+ or MariaDB 10.3+. A read-only database user.
+
+    **Setup:**
+    1. Create a read-only user:
+       ```sql
+       CREATE USER 'quanterios'@'%' IDENTIFIED BY 'strong-password';
+       GRANT SELECT ON performance_schema.* TO 'quanterios'@'%';
+       FLUSH PRIVILEGES;
+       ```
+    2. In the Quanterios dashboard, add a MySQL connector with host, port, username, and password.
+
+    Quanterios reads `performance_schema.global_variables` and `information_schema.user_attributes` to determine SSL configuration. No table data is read.
+  </Accordion>
+
+  <Accordion title="PostgreSQL">
+    **Prerequisites:** PostgreSQL 12+. A read-only database user.
+
+    **Setup:**
+    1. Create a read-only user:
+       ```sql
+       CREATE USER quanterios WITH PASSWORD 'strong-password';
+       GRANT pg_read_all_settings TO quanterios;
+       ```
+    2. In the Quanterios dashboard, add a PostgreSQL connector with host, port, database, username, and password.
+
+    Quanterios queries `pg_settings` to read SSL-related configuration parameters. No table data is read.
+  </Accordion>
+</AccordionGroup>
