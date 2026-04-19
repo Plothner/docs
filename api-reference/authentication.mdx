@@ -1,0 +1,55 @@
+---
+title: "Authentication"
+description: "How to authenticate requests to the Quanterios API."
+---
+
+The Quanterios API uses two request headers to authenticate calls. All tenant-scoped endpoints require both `X-Tenant-Id` and `X-API-Key`. Firewall endpoints that operate under the free tier accept a platform bearer token instead.
+
+<Info>
+  The Crypto Debt Firewall free tier authenticates via your platform token (GitHub App installation token, GitLab CI job token, or Bitbucket pipeline token). You do not need a Quanterios API key to use firewall scanning on the free tier.
+</Info>
+
+## Request headers
+
+| Header | Required | Description |
+|---|---|---|
+| `X-Tenant-Id` | Yes, for tenant-scoped endpoints | Your tenant UUID, found in **Settings > API Keys**. |
+| `X-API-Key` | Yes, for paid tier | Your secret API key. Treat this like a password. |
+| `Authorization` | Firewall endpoints only | `Bearer <token>` using your platform token. |
+
+## Examples
+
+<CodeGroup>
+
+```bash Paid Tier
+curl -X GET "https://api.quanterios.com/cbom/assets" \
+  -H "X-Tenant-Id: 3f8a1c2d-0000-4b5e-9f7a-abc123def456" \
+  -H "X-API-Key: qk_live_xxxxxxxxxxxxxxxxxxxxxx"
+```
+
+```bash Firewall (Free)
+curl -X POST "https://api.quanterios.com/api/v1/firewall/scan" \
+  -H "Authorization: Bearer $GITHUB_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"repo": "acme/payments", "ref": "refs/heads/main"}'
+```
+
+</CodeGroup>
+
+## Getting your API key
+
+<Steps>
+  <Step title="Create an account">
+    Sign up at [quanterios.com](https://quanterios.com). A personal tenant is provisioned automatically on first login.
+  </Step>
+  <Step title="Open API settings">
+    Navigate to **Settings > API Keys** from the top-right menu in the Quanterios dashboard.
+  </Step>
+  <Step title="Generate a key">
+    Click **New API Key**, give it a descriptive name (for example, `ci-prod`), and copy the value immediately. The key is shown only once.
+  </Step>
+</Steps>
+
+<Warning>
+  Keep your API key secret. Never commit it to source control, log it, or embed it in client-side code. If a key is compromised, rotate it immediately from **Settings > API Keys** and revoke the old one.
+</Warning>

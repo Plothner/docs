@@ -1,0 +1,56 @@
+---
+title: "Errors"
+description: "Standard error shapes and HTTP status codes returned by the Quanterios API."
+---
+
+All Quanterios API errors return JSON with at minimum a `detail` field describing what went wrong. Validation errors include an additional `errors` array with field-level detail.
+
+```json Error response shape
+{
+  "detail": "error message here"
+}
+```
+
+## HTTP status codes
+
+| Code | Meaning | When it occurs |
+|---|---|---|
+| `200` | Success | The request completed successfully. |
+| `400` | Bad Request | Parameters are missing, malformed, or logically invalid. |
+| `401` | Unauthorized | Authentication headers are absent or the API key is invalid. |
+| `403` | Forbidden | The authenticated identity lacks permission for the requested resource. |
+| `404` | Not Found | The requested resource does not exist or has been deleted. |
+| `422` | Validation Error | The request body passed schema validation at the HTTP layer but failed business-rule validation. |
+| `429` | Rate Limited | The caller has exceeded the rate limit for this endpoint category. |
+| `500` | Server Error | An unexpected internal error occurred. Contact support if this persists. |
+| `503` | Service Unavailable | A downstream dependency (Typst renderer or LLM service) is temporarily unavailable. |
+
+## Validation errors (422)
+
+<Accordion title="Field-level error shape">
+  When a request body fails schema validation, the response includes an `errors` array. Each entry identifies the offending field and describes the constraint that was violated.
+
+  ```json 422 Validation Error
+  {
+    "detail": "Request validation failed.",
+    "errors": [
+      {
+        "field": "algorithm",
+        "message": "Value 'RSA-512' is not a recognised algorithm identifier.",
+        "type": "value_error"
+      },
+      {
+        "field": "expiry",
+        "message": "field required",
+        "type": "missing"
+      }
+    ]
+  }
+  ```
+
+  Use the `field` value to map each error back to the request body property that needs correction.
+</Accordion>
+
+<Tip>
+  PDF export endpoints (`/hndl/brief/pdf`, `/compliance/report/pdf`) return `503` when the Typst binary is not installed or fails to compile the template. If you self-host the API, make sure Typst is present in the server `PATH` and that the template directory is correctly mounted.
+</Tip>

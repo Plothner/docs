@@ -1,0 +1,34 @@
+---
+title: "Rate Limits"
+description: "Per-tier rate limits applied to Quanterios API endpoints."
+---
+
+Quanterios enforces rate limits to protect service reliability for all customers. Limits are applied per tenant on the paid tier and per IP address on the free tier. Burst capacity is not currently offered; requests over the limit are rejected immediately with a `429` response.
+
+## Limits by endpoint category
+
+| Endpoint Category | Free Tier | Paid Tier |
+|---|---|---|
+| Firewall scan | Unlimited | Unlimited |
+| Firewall AI audit | 50 per month | Unlimited |
+| CBOM operations | 1,000 per day | Unlimited |
+| Migration preview | 100 per day | Unlimited |
+| Code patch | 10 per day | Unlimited |
+
+<Info>
+  Every API response includes rate limit metadata in the following headers:
+
+  | Header | Description |
+  |---|---|
+  | `X-RateLimit-Limit` | The maximum number of requests allowed in the current window. |
+  | `X-RateLimit-Remaining` | The number of requests remaining before the limit resets. |
+  | `X-RateLimit-Reset` | Unix timestamp (UTC) at which the current window resets. |
+</Info>
+
+<Warning>
+  When you exceed a rate limit, the API returns `429 Too Many Requests` with a `Retry-After` header indicating how many seconds to wait before retrying. Clients should respect this header and implement exponential backoff. Repeated disregard for rate limits may result in temporary suspension of your API key.
+</Warning>
+
+<Tip>
+  If you routinely hit CBOM, migration, or code-patch limits, consider upgrading to the paid tier. Paid tier removes all daily and monthly caps and provides SLA-backed uptime. Visit [quanterios.com/pricing](https://quanterios.com/pricing) to compare plans.
+</Tip>

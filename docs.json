@@ -13,7 +13,33 @@
     "dark": "#0a3d62"
   },
   "navigation": {
-    "tabs": [],
+    "tabs": [
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+              "api-reference/authentication",
+              "api-reference/errors",
+              "api-reference/rate-limits"
+            ]
+          },
+          {
+            "group": "Endpoints",
+            "pages": [
+              "api-reference/cbom",
+              "api-reference/hndl",
+              "api-reference/compliance",
+              "api-reference/firewall",
+              "api-reference/migration",
+              "api-reference/hybrid",
+              "api-reference/webhooks"
+            ]
+          }
+        ]
+      }
+    ],
     "groups": [
       {
         "group": "Getting Started",
