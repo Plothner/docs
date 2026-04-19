@@ -1,0 +1,88 @@
+---
+title: "Hybrid Mode Deployment"
+description: "Classical and PQC algorithms run simultaneously. Legacy clients negotiate classical. Modern clients negotiate PQC. Nothing breaks during the transition window."
+---
+
+## Zero-downtime migration
+
+Hybrid mode solves the core problem of PQC adoption: you cannot flip a switch and replace all classical certificates on a given day because some clients will not support PQC algorithms yet.
+
+Instead, hybrid mode deploys both certificate chains simultaneously. The server presents them via SNI. The TLS handshake negotiation picks the strongest algorithm both parties support:
+
+- A client that supports ML-KEM-768 negotiates PQC.
+- A client that only supports RSA negotiates classical.
+- No client receives an error or a degraded connection.
+
+The transition completes when PQC handshakes reach 99.5% of total connections and all rolloff criteria are satisfied. At that point, Quanterios opens a cleanup PR to remove the classical certificate.
+
+## Supported platforms
+
+| Platform | Mechanism | Notes |
+|---|---|---|
+| Nginx | Dual `ssl_certificate` directives | Requires OpenSSL 3.x with oqs-provider |
+| Apache | `SSLCertificateFile` + `SSLCertificateKeyFile` dual blocks | Requires mod_ssl with OQS support |
+| HAProxy | Dual PEM bundles in `crt-list` | Requires HAProxy 2.8+ |
+| AWS ALB | Two `aws_acm_certificate` ARNs on the same listener | Native SNI support, no patch required |
+| OpenSSH | Hybrid KEX algorithm negotiation | `KexAlgorithms ecdh-sha2-nistp256+mlkem768` |
+| K8s Ingress | Two TLS secrets on the same Ingress resource | cert-manager dual issuer configuration |
+
+## Deployment lifecycle
+
+<Steps>
+  <Step title="Deploy hybrid configuration">
+    The Terraform, Ansible, or Helm playbook provisions the PQC certificate alongside the existing classical certificate. Both are attached to the same virtual host or load balancer listener. No traffic is affected at this stage.
+  </Step>
+  <Step title="Enable dual serving">
+    The platform configuration is updated to present both certificates. For Nginx and Apache, this is a config reload. For AWS ALB, it is an API call to add the second certificate ARN. The canary phase begins.
+  </Step>
+  <Step title="Monitor handshake ratios">
+    Log-based monitoring records the cipher suite negotiated for each connection. The PQC handshake ratio is calculated every 5 minutes:
+
+    ```bash
+    # Nginx: count PQC cipher suite negotiations in the last 5 minutes
+    grep "$(date -d '5 minutes ago' '+%d/%b/%Y:%H:%M')" /var/log/nginx/access.log \
+      | grep -c "MLKEM\|kyber"
+
+    # Compare against total connections
+    curl -s http://localhost/nginx_status | awk '/Active connections/{print $3}'
+    ```
+
+    No agent or sidecar is required. The monitoring script runs as a cron job on the host or as a K8s CronJob.
+  </Step>
+  <Step title="Wait for 99.5% PQC ratio">
+    The monitoring window continues until all four rolloff criteria are satisfied. This typically takes 7 to 14 days depending on client update cadence.
+  </Step>
+  <Step title="Approve rolloff">
+    When rolloff criteria are met, Quanterios creates a `rolloff-ready` event and notifies the team via the configured webhook. A human reviews the metrics dashboard and approves the rolloff.
+  </Step>
+  <Step title="Cleanup">
+    A cleanup PR is automatically generated. It removes the classical certificate configuration, the dual-serve directives, and the monitoring cron job. Merging the PR completes the migration.
+  </Step>
+</Steps>
+
+## Rolloff criteria
+
+All four criteria must be satisfied simultaneously over a continuous measurement window before rolloff is authorized:
+
+| Criterion | Required value | Rationale |
+|---|---|---|
+| PQC handshake ratio | >= 99.5% over 7 consecutive days | Ensures near-complete client migration before classical is removed |
+| Minimum connection count | >= 1,000 total connections | Prevents rolloff on low-traffic services with statistically unreliable ratios |
+| Telemetry gap | No gap > 1 hour in monitoring data | Ensures the ratio is not inflated by missing data |
+| Soak time | >= 72 hours since canary deployment | Minimum operational validation period regardless of traffic volume |
+
+<Info>
+  When all four criteria are met, Quanterios automatically opens a cleanup PR on the configured platform. The PR includes a summary of the 7-day monitoring window and a checklist confirming each criterion. No action is taken until the PR is merged.
+</Info>
+
+## What monitoring tracks
+
+The log-based monitoring captures the following signals per connection:
+
+| Signal | Source | How collected |
+|---|---|---|
+| Cipher suite negotiated | TLS handshake log | Nginx `$ssl_cipher`, Apache `%{SSL_CIPHER}`, HAProxy `ssl_fc_cipher` |
+| TLS protocol version | TLS handshake log | Nginx `$ssl_protocol`, Apache `%{SSL_PROTOCOL}` |
+| Client IP (for client diversity check) | Access log | Standard access log |
+| Connection timestamp | Access log | Standard access log |
+| HTTP response code | Access log | Used to detect regressions after cert swap |

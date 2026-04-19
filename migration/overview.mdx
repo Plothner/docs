@@ -1,0 +1,75 @@
+---
+title: "Migration Intelligence"
+description: "Discover the problem with Risk Intelligence. Fix it with Migration Intelligence. Quanterios generates runnable IaC playbooks, predicts breakage, and delivers everything as a pull request."
+---
+
+<Info>
+  Migration Intelligence is backed by **960 tests** covering the full playbook pipeline, from template rendering through canary deployment and cleanup confirmation.
+</Info>
+
+## The workflow in context
+
+Risk Intelligence surfaces every weak algorithm, expiring certificate, and compliance gap in your environment. Migration Intelligence picks up from there: it converts each finding into a runnable fix with a predicted breakage probability before a single change reaches production.
+
+The two products are designed to be used together, but Migration Intelligence accepts manual input as well. You can specify any source and target algorithm directly.
+
+## 29 migration paths
+
+Quanterios ships with 29 pre-built migration paths across three categories:
+
+| Category | Count | Purpose |
+|---|---|---|
+| Classical | 13 | Fix today's compliance and hygiene gaps |
+| Quantum | 10 | Prepare for post-quantum cryptography by 2030 |
+| Hybrid | 6 | Deploy classical and PQC simultaneously for zero-downtime transition |
+
+See [Migration Paths](/migration/paths) for the full table.
+
+## End-to-end workflow
+
+<Steps>
+  <Step title="Select a template">
+    Choose a migration path from the 29 available templates. Each template encodes the source algorithm, target algorithm, platform, and IaC type (Terraform, Ansible, or Helm).
+  </Step>
+  <Step title="Preview with breakage prediction">
+    Before any plan is created, the XGBoost model scores your specific migration on a 0 to 100% breakage probability scale. Inputs include library version, dependency count, platform, and historical outcomes from 5,000+ real GitHub crypto PRs.
+  </Step>
+  <Step title="Create the plan">
+    The engine renders Jinja2 templates into fully-parameterized HCL, YAML playbooks, or Helm values files. The rendered output is stored in the migration plan and version-controlled.
+  </Step>
+  <Step title="Deploy: canary then rollout">
+    Deployment is staged. The canary phase routes a configurable percentage of traffic to the new configuration. Metrics are collected for the full monitoring window before full rollout proceeds.
+  </Step>
+  <Step title="Monitor">
+    Log-based monitoring tracks handshake ratios, cipher suite negotiations, and error rates throughout the monitoring window. No agent required.
+  </Step>
+  <Step title="Confirm and close">
+    When rolloff criteria are met, Quanterios opens a cleanup PR to remove the old configuration. The migration moves to a confirmed state in the portfolio.
+  </Step>
+</Steps>
+
+## Where to go next
+
+<CardGroup cols={2}>
+  <Card title="Migration Paths" icon="route" href="/migration/paths">
+    Full table of all 29 paths: classical, quantum, and hybrid.
+  </Card>
+  <Card title="Infrastructure Playbooks" icon="file-code" href="/migration/playbooks">
+    How Jinja2 templates produce Terraform, Ansible, and Helm artifacts.
+  </Card>
+  <Card title="Code Patcher" icon="code" href="/migration/code-patcher">
+    Semgrep-based detection and LLM-generated hybrid shims for Python codebases.
+  </Card>
+  <Card title="Hybrid Mode" icon="shuffle" href="/migration/hybrid-mode">
+    Run classical and PQC simultaneously across 6 platforms.
+  </Card>
+  <Card title="Breakage Prediction" icon="chart-line" href="/migration/breakage-prediction">
+    XGBoost model trained on 5,000+ real-world crypto PRs.
+  </Card>
+  <Card title="PR Delivery" icon="code-pull-request" href="/migration/pr-delivery">
+    Playbooks delivered as pull requests on GitHub, GitLab, and Bitbucket.
+  </Card>
+  <Card title="Cost Estimation" icon="calculator" href="/migration/cost-estimation">
+    Formula-based cost estimates per migration path and template type.
+  </Card>
+</CardGroup>

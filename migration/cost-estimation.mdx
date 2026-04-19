@@ -1,0 +1,101 @@
+---
+title: "Cost Estimation"
+description: "Every migration plan includes a cost estimate before confirmation. Estimates are based on monitoring hours, dependency count, base effort, and the tenant hourly rate."
+---
+
+<Tip>
+  The cost estimate appears in two places: the per-asset report (under the recommended migration action) and the portfolio report (as an aggregate migration budget across all findings). Use the portfolio report to build your remediation roadmap and prioritize by cost and risk.
+</Tip>
+
+## Estimation formula
+
+```
+estimated_cost = (monitoring_hours * 0.5 + dependency_count * 2 + base_effort) * hourly_rate
+```
+
+| Variable | Source | Default |
+|---|---|---|
+| `monitoring_hours` | Migration path definition (see [Migration Paths](/migration/paths)) | Varies by path |
+| `dependency_count` | Discovered during asset scan or provided manually | 0 |
+| `base_effort` | Template type (see table below) | Varies by type |
+| `hourly_rate` | Tenant configuration | 150 EUR |
+
+The formula approximates total engineer-hours required to execute, monitor, and validate the migration. It does not include cloud resource costs (cert issuance, KMS operations), which are typically negligible compared to labour.
+
+## Base effort by template type
+
+| Template type | Base effort (hours) | Notes |
+|---|---|---|
+| Terraform | 4 | Cloud resource provisioning and state management |
+| Ansible | 8 | Host access, SSH key distribution, validation steps |
+| Helm | 6 | Chart values, cert-manager configuration, K8s RBAC |
+| Classical migration | 4 | Lower complexity; well-established tooling |
+| Hybrid migration | 10 | Dual configuration, extended monitoring, cleanup PR |
+| Code patch (single file) | 2 | One Semgrep hit, one shim function |
+| Code patch (multi-file) | 6 | Multiple call sites, cross-module shim, CI matrix |
+
+## Example calculation
+
+A hybrid Nginx migration (`hyb-dual-cert-nginx`) for a service with 8 downstream dependencies, at the default hourly rate:
+
+```
+monitoring_hours = 168  (from path definition)
+dependency_count = 8
+base_effort      = 10   (hybrid migration)
+hourly_rate      = 150
+
+estimated_cost = (168 * 0.5 + 8 * 2 + 10) * 150
+              = (84 + 16 + 10) * 150
+              = 110 * 150
+              = 16,500 EUR
+```
+
+## Configuring the hourly rate
+
+The default rate is 150 EUR per hour. To set a custom rate for your tenant:
+
+```bash
+curl -X PATCH https://api.quanterios.com/v1/tenant/settings \
+  -H "Authorization: Bearer $QUANTERIOS_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"cost_estimation": {"hourly_rate_eur": 200}}'
+```
+
+Rates can also be set per migration category:
+
+```json
+{
+  "cost_estimation": {
+    "hourly_rate_eur": 150,
+    "overrides": {
+      "classical": 120,
+      "quantum": 200,
+      "hybrid": 180,
+      "code_patch": 130
+    }
+  }
+}
+```
+
+When category overrides are present, the override rate takes precedence over the base rate for migrations in that category.
+
+## Limitations
+
+<AccordionGroup>
+  <Accordion title="What is not included in the estimate">
+    The formula covers engineer time only. The following are not included and must be estimated separately:
+
+    - Cloud provider fees (ACM cert issuance, KMS key storage, ALB certificate attachment)
+    - External CA fees for PQC certificate issuance
+    - Tooling licenses (Terraform Enterprise, Ansible Automation Platform)
+    - Downtime costs (the migration is designed for zero downtime, but this cannot be guaranteed for all configurations)
+  </Accordion>
+  <Accordion title="Accuracy expectations">
+    Estimates are directional, not contractual. The formula is calibrated against internal benchmarks and customer feedback. Actual effort may vary based on:
+
+    - Team familiarity with the platform
+    - Existing IaC maturity (whether the repository already uses the generated tool)
+    - Approval and change management processes
+    - Number of environments (dev, staging, prod each count as a separate migration)
+  </Accordion>
+</AccordionGroup>

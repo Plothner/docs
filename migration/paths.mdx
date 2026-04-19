@@ -1,0 +1,64 @@
+---
+title: "Migration Paths"
+description: "All 29 supported migration paths organized by category: 13 classical, 10 quantum, and 6 hybrid."
+---
+
+<Info>
+  **Classical** paths fix today's compliance and hygiene gaps. **Quantum** paths prepare your infrastructure for post-quantum cryptography before 2030. **Hybrid** paths deploy both algorithms simultaneously so no client breaks during the transition.
+</Info>
+
+<Tabs>
+  <Tab title="Classical (13 paths)">
+    Classical migrations replace algorithms that are weak, deprecated, or non-compliant with current standards. These paths resolve findings flagged by Risk Intelligence under the NIST SP 800-131A, FIPS 140-3, and PCI DSS 4.0 compliance frameworks.
+
+    | Source | Target | Platform | Template ID | Monitoring Hours |
+    |---|---|---|---|---|
+    | RSA-1024 | RSA-2048 | AWS ACM | `cls-rsa-upgrade-acm` | 24 |
+    | RSA weak key | RSA-4096 | Azure Key Vault | `cls-rsa-4096-akv` | 24 |
+    | SHA-1 | SHA-256 | Nginx | `cls-sha1-nginx` | 12 |
+    | SHA-1 | SHA-256 | Apache | `cls-sha1-apache` | 12 |
+    | 3DES | AES-256-GCM | HAProxy | `cls-3des-haproxy` | 12 |
+    | DES | AES-256-GCM | Nginx | `cls-des-nginx` | 12 |
+    | TLS 1.0 | TLS 1.2 | AWS ALB | `cls-tls10-alb` | 48 |
+    | TLS 1.0 | TLS 1.2 | Nginx | `cls-tls10-nginx` | 48 |
+    | TLS 1.1 | TLS 1.3 | HAProxy | `cls-tls11-haproxy` | 48 |
+    | RSA SSH host key | Ed25519 SSH | OpenSSH | `cls-rsa-ssh-ed25519` | 6 |
+    | DSA SSH | Ed25519 SSH | OpenSSH | `cls-dsa-ssh-ed25519` | 6 |
+    | MD5 cert fingerprint | SHA-256 fingerprint | GCP CM | `cls-md5-gcp` | 12 |
+    | ECDSA P-192 | ECDSA P-256 | K8s cert-manager | `cls-p192-k8s` | 24 |
+  </Tab>
+  <Tab title="Quantum (10 paths)">
+    Quantum migrations replace classical public-key algorithms with NIST-standardized post-quantum algorithms from FIPS 203 (ML-KEM) and FIPS 204 (ML-DSA). These paths are designed for infrastructure that must be quantum-resistant before 2030.
+
+    | Source | Target | Platform | Template ID | Monitoring Hours |
+    |---|---|---|---|---|
+    | RSA-2048 | ML-KEM-768 | AWS ACM | `pqc-rsa-mlkem-acm` | 72 |
+    | RSA-2048 | ML-KEM-768 | Azure Key Vault | `pqc-rsa-mlkem-akv` | 72 |
+    | RSA-2048 | ML-KEM-768 | GCP KMS | `pqc-rsa-mlkem-gcp` | 72 |
+    | RSA-2048 | ML-KEM-768 | Nginx | `pqc-rsa-mlkem-nginx` | 72 |
+    | RSA-2048 | ML-KEM-768 | Apache | `pqc-rsa-mlkem-apache` | 72 |
+    | RSA-2048 | ML-KEM-768 | HAProxy | `pqc-rsa-mlkem-haproxy` | 72 |
+    | RSA-2048 | ML-KEM-768 | K8s Ingress | `pqc-rsa-mlkem-k8s` | 72 |
+    | ECDSA P-256 | ML-DSA-65 | AWS ACM | `pqc-ecdsa-mldsa-acm` | 72 |
+    | ECDSA P-256 | ML-DSA-65 | Nginx | `pqc-ecdsa-mldsa-nginx` | 72 |
+    | Ed25519 | ML-DSA-44 | OpenSSH | `pqc-ed25519-mldsa-ssh` | 48 |
+  </Tab>
+  <Tab title="Hybrid (6 paths)">
+    Hybrid migrations deploy classical and PQC algorithms simultaneously. The server presents both certificates via SNI. Legacy clients negotiate the classical cipher suite; modern clients negotiate PQC. No client breaks during the transition window.
+
+    | Configuration | Platform | Template ID | Monitoring Hours |
+    |---|---|---|---|
+    | Dual-cert (RSA + ML-KEM-768) | Nginx | `hyb-dual-cert-nginx` | 168 |
+    | Dual-cert (RSA + ML-KEM-768) | Apache | `hyb-dual-cert-apache` | 168 |
+    | Dual-cert (RSA + ML-KEM-768) | HAProxy | `hyb-dual-cert-haproxy` | 168 |
+    | Dual-cert (RSA + ML-KEM-768) | AWS ALB | `hyb-dual-cert-alb` | 168 |
+    | Hybrid KEX (ECDH + ML-KEM-768) | OpenSSH | `hyb-kex-ssh` | 72 |
+    | Dual TLS (classical + PQC ingress) | K8s Ingress | `hyb-dual-tls-k8s` | 168 |
+  </Tab>
+</Tabs>
+
+## Reading the table
+
+- **Template ID** is the identifier passed to the `POST /api/v1/migration/plans` endpoint when creating a plan programmatically.
+- **Monitoring hours** is the minimum window after canary deployment before full rollout is authorized. Hybrid paths have longer windows because two certificate chains must be validated concurrently.
+- Platform abbreviations: ACM = AWS Certificate Manager, AKV = Azure Key Vault, GCP CM = Google Certificate Manager, ALB = AWS Application Load Balancer.

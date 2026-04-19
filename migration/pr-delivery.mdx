@@ -1,0 +1,82 @@
+---
+title: "PR Delivery"
+description: "Every migration playbook and code patch is delivered as a pull request on GitHub, GitLab, or Bitbucket. No separate credentials required: Quanterios uses the existing platform integration."
+---
+
+<Info>
+  Code patches with low model confidence receive a `NEEDS HUMAN REVIEW` prefix in the PR title. This signals that the LLM output passed validation but the migration path has limited training data. A cryptography engineer should review the shim logic before merging.
+</Info>
+
+## What a migration PR contains
+
+Every PR opened by Quanterios includes the following files regardless of IaC type:
+
+| File | Description |
+|---|---|
+| `quanterios/playbook/step_1_provision.*` | IaC for provisioning the new resource |
+| `quanterios/playbook/step_4_cutover.*` | IaC for shifting traffic to the new resource |
+| `quanterios/playbook/rollback.*` | IaC for reverting to the original configuration |
+| `quanterios/playbook/cleanup.*` | IaC for removing the old resource (separate cleanup PR) |
+| `quanterios/README.md` | Risk assessment, breakage probability, business impact summary |
+| `quanterios/audit.json` | Snapshot of the migration plan record at time of PR creation |
+
+## Platform-specific PR format
+
+<Tabs>
+  <Tab title="GitHub">
+    Quanterios uses the installed GitHub App JWT to open PRs. No personal access token is required.
+
+    | Field | Value |
+    |---|---|
+    | Branch name | `quanterios/migration/{migration_plan_id}` |
+    | PR title | `[Quanterios] Migrate {source} to {target} on {platform}` |
+    | PR title (low confidence) | `[Quanterios] NEEDS HUMAN REVIEW: Migrate {source} to {target} on {platform}` |
+    | Base branch | Default branch of the repository |
+    | Labels | `quanterios`, `crypto-migration`, `{category}` |
+    | Assignees | Repository owners or a configured reviewer group |
+    | PR body sections | Summary, Breakage Prediction, Risk Factors, Deployment Instructions, Rollback Instructions |
+
+    The GitHub Actions CI matrix workflow (`.github/workflows/quanterios-crypto-matrix.yml`) is included in code patch PRs only. Infrastructure playbook PRs do not modify CI configuration.
+  </Tab>
+  <Tab title="GitLab">
+    Quanterios uses the GitLab OAuth token obtained during the platform integration setup. The token requires `api` scope on the target project.
+
+    | Field | Value |
+    |---|---|
+    | Branch name | `quanterios/migration/{migration_plan_id}` |
+    | MR title | `[Quanterios] Migrate {source} to {target} on {platform}` |
+    | MR title (low confidence) | `[Quanterios] NEEDS HUMAN REVIEW: Migrate {source} to {target} on {platform}` |
+    | Target branch | Default branch of the project |
+    | Labels | `quanterios::migration`, `{category}` |
+    | Assignees | Project maintainers or configured reviewer user IDs |
+    | MR description sections | Summary, Breakage Prediction, Risk Factors, Deployment Instructions, Rollback Instructions |
+
+    GitLab CI pipeline files (`.gitlab-ci.yml` fragment) are included in code patch MRs. The fragment adds a `quanterios-crypto-matrix` stage with three parallel jobs (classical, hybrid, pqc).
+  </Tab>
+  <Tab title="Bitbucket">
+    Quanterios uses the Bitbucket OAuth 2.0 token obtained during integration setup. The token requires `pullrequest:write` and `repository:write` scopes.
+
+    | Field | Value |
+    |---|---|
+    | Branch name | `quanterios/migration/{migration_plan_id}` |
+    | PR title | `[Quanterios] Migrate {source} to {target} on {platform}` |
+    | PR title (low confidence) | `[Quanterios] NEEDS HUMAN REVIEW: Migrate {source} to {target} on {platform}` |
+    | Destination branch | Default branch of the repository |
+    | Reviewers | Repository admins or configured reviewer account IDs |
+    | PR description sections | Summary, Breakage Prediction, Risk Factors, Deployment Instructions, Rollback Instructions |
+
+    Bitbucket Pipelines configuration (`bitbucket-pipelines.yml` fragment) is included in code patch PRs. The fragment adds a `quanterios-crypto-matrix` parallel step group.
+  </Tab>
+</Tabs>
+
+## Authentication model
+
+Quanterios never stores long-lived credentials for your repositories. The platform integrations use the following token types:
+
+| Platform | Token type | Lifetime | Re-auth trigger |
+|---|---|---|---|
+| GitHub | GitHub App installation JWT | 1 hour, auto-refreshed | App uninstall or revocation |
+| GitLab | OAuth 2.0 access token with refresh | 2 hours, auto-refreshed | Refresh token expiry (60 days) |
+| Bitbucket | OAuth 2.0 access token with refresh | 2 hours, auto-refreshed | Refresh token expiry (90 days) |
+
+If a token cannot be refreshed (for example, the app was uninstalled or OAuth access was revoked), PR delivery is paused and a notification is sent to the tenant administrator.

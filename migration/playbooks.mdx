@@ -1,0 +1,192 @@
+---
+title: "Infrastructure Playbooks"
+description: "Jinja2 templates render into runnable Terraform, Ansible, and Helm artifacts. Every playbook follows a blue-green pattern with built-in rollback and audit logging."
+---
+
+## How playbooks are generated
+
+Each migration template is a Jinja2 file parameterized on source algorithm, target algorithm, platform, resource identifiers, and tenant configuration. When a migration plan is created, the rendering engine resolves all variables and produces a complete, runnable IaC artifact.
+
+The output is stored in the migration plan record and delivered as a pull request. No manual editing is required before running the playbook.
+
+## Blue-green deployment pattern
+
+Every playbook follows the same five-step sequence regardless of IaC type:
+
+| Step | Name | What happens |
+|---|---|---|
+| 1 | Create new | Provision the target resource (cert, key, secret) alongside the existing one |
+| 2 | Canary | Route a small percentage of traffic to the new resource |
+| 3 | Monitor | Collect metrics for the full monitoring window |
+| 4 | Rollout | Shift 100% of traffic to the new resource |
+| 5 | Cleanup | Remove the old resource after confirmation |
+
+Cleanup is a separate step that requires explicit approval. It is never automated.
+
+## Playbook types
+
+<Tabs>
+  <Tab title="Terraform">
+    ### What Terraform playbooks generate
+
+    Terraform playbooks produce HCL that manages the following resource types:
+
+    - **AWS**: `aws_acm_certificate`, `aws_kms_key`, `aws_lb_listener` rule updates
+    - **Azure**: `azurerm_key_vault_certificate`, `azurerm_key_vault_key`
+    - **GCP**: `google_certificate_manager_certificate`, `google_kms_crypto_key`
+
+    Each plan is split into two Terraform roots: `step_1_provision` (idempotent, safe to run multiple times) and `step_4_cutover` (requires monitoring gate to pass first).
+
+    ### Example: step_1_provision for AWS ACM
+
+    ```hcl
+    resource "aws_acm_certificate" "target" {
+      domain_name       = var.domain_name
+      validation_method = "DNS"
+
+      subject_alternative_names = var.san_list
+
+      options {
+        certificate_transparency_logging_preference = "ENABLED"
+      }
+
+      lifecycle {
+        create_before_destroy = true
+      }
+
+      tags = {
+        quanterios_migration_id = var.migration_plan_id
+        quanterios_phase        = "canary"
+        source_algorithm        = "RSA-2048"
+        target_algorithm        = "ML-KEM-768"
+      }
+    }
+
+    resource "aws_acm_certificate_validation" "target" {
+      certificate_arn         = aws_acm_certificate.target.arn
+      validation_record_fqdns = [for r in aws_route53_record.validation : r.fqdn]
+    }
+    ```
+  </Tab>
+  <Tab title="Ansible">
+    ### What Ansible playbooks generate
+
+    Ansible playbooks manage certificate and key deployment on self-hosted infrastructure:
+
+    - **Nginx**: certificate and key file placement, `nginx -t` validation, graceful reload
+    - **Apache**: `SSLCertificateFile` and `SSLCertificateKeyFile` directives, `apachectl configtest`, reload
+    - **HAProxy**: PEM bundle generation, `haproxy -c` validation, reload
+    - **OpenSSH**: host key replacement, `sshd -t` validation, service restart with connection drain
+
+    ### Example: Nginx cert rotation task
+
+    ```yaml
+    - name: Deploy target certificate
+      copy:
+        src: "{{ migration_artifacts_dir }}/target.crt"
+        dest: "/etc/nginx/certs/{{ domain }}.crt"
+        owner: root
+        group: root
+        mode: "0644"
+        backup: yes
+      notify: validate nginx config
+
+    - name: Deploy target private key
+      copy:
+        src: "{{ migration_artifacts_dir }}/target.key"
+        dest: "/etc/nginx/certs/{{ domain }}.key"
+        owner: root
+        group: root
+        mode: "0600"
+        backup: yes
+      notify: validate nginx config
+
+    handlers:
+      - name: validate nginx config
+        command: nginx -t
+        register: nginx_test
+        failed_when: nginx_test.rc != 0
+        notify: reload nginx
+
+      - name: reload nginx
+        service:
+          name: nginx
+          state: reloaded
+    ```
+  </Tab>
+  <Tab title="Helm">
+    ### What Helm playbooks generate
+
+    Helm playbooks manage certificate lifecycle in Kubernetes clusters:
+
+    - **TLS secrets**: `kubernetes.io/tls` type secrets with the new key material
+    - **Ingress annotations**: cert-manager `Issuer` or `ClusterIssuer` references updated to the PQC issuer
+    - **Values overrides**: a `migration-values.yaml` file that can be applied with `helm upgrade --reuse-values -f migration-values.yaml`
+
+    ### Example: values override for K8s dual TLS
+
+    ```yaml
+    ingress:
+      tls:
+        - secretName: app-tls-classical
+          hosts:
+            - app.example.com
+        - secretName: app-tls-pqc
+          hosts:
+            - app.example.com
+
+    certManager:
+      classicalIssuer:
+        name: letsencrypt-prod
+        kind: ClusterIssuer
+      pqcIssuer:
+        name: quanterios-pqc-issuer
+        kind: ClusterIssuer
+
+      annotations:
+        cert-manager.io/cluster-issuer: "quanterios-pqc-issuer"
+        quanterios.io/migration-id: "{{ migration_plan_id }}"
+        quanterios.io/phase: "canary"
+    ```
+  </Tab>
+</Tabs>
+
+## Safety features
+
+<AccordionGroup>
+  <Accordion title="Idempotency guard">
+    Every playbook checks for the presence of a `quanterios_migration_id` tag or annotation on the target resource before creating it. If the resource already exists and is tagged with the same migration ID, the creation step is skipped. This means playbooks can be re-run safely after a partial failure without creating duplicate resources.
+
+    For Terraform, this is enforced via `lifecycle { create_before_destroy = true }` and a data source lookup on the existing resource. For Ansible, a `stat` task checks for the backup file before overwriting. For Helm, the values merge is always additive.
+  </Accordion>
+  <Accordion title="Rollback procedure">
+    Each playbook includes a `rollback.sh` (Terraform/Ansible) or `rollback-values.yaml` (Helm) artifact. Rollback restores the original configuration from the backup created in step 1.
+
+    Rollback is triggered automatically if the monitoring gate detects error rates above threshold during the canary phase. It can also be triggered manually via the API or the Quanterios dashboard.
+
+    Rollback does not remove the new resource; it only shifts traffic back to the original. The new resource remains available for re-attempting the migration.
+  </Accordion>
+  <Accordion title="Audit log format">
+    Every playbook execution appends a structured JSON entry to the migration audit log:
+
+    ```json
+    {
+      "migration_plan_id": "mig_01j9x3k...",
+      "step": "step_1_provision",
+      "status": "success",
+      "executor": "terraform",
+      "started_at": "2026-04-18T09:12:00Z",
+      "completed_at": "2026-04-18T09:14:37Z",
+      "resources_created": ["arn:aws:acm:eu-west-1:123456789:certificate/abc123"],
+      "idempotency_skipped": false
+    }
+    ```
+
+    Audit logs are stored in the Quanterios database and surfaced in the migration timeline view. They are also included in the PR description for each delivery.
+  </Accordion>
+  <Accordion title="Cleanup confirmation">
+    Step 5 (cleanup) is never executed automatically. The playbook generates a `cleanup-ready` event when all rolloff criteria are met, which triggers a separate cleanup PR. That PR must be reviewed and merged by a human before the old resource is removed.
+
+    The cleanup PR includes a summary of the monitoring window, the final PQC handshake ratio, and a checklist confirming that rolloff criteria were satisfied.
+  </Accordion>
+</AccordionGroup>

@@ -1,0 +1,142 @@
+---
+title: "Code Patcher"
+description: "Semgrep detects crypto call sites in Python. An LLM generates a hybrid shim module. Deterministic validators check the output. Everything arrives as a pull request with tests and a CI hook."
+---
+
+<Warning>
+  **Python only.** Java, Go, and Node.js support is on the roadmap. The Code Patcher will not open a PR for non-Python repositories; it flags them as unsupported in the scan report.
+</Warning>
+
+## How it works
+
+The Code Patcher operates in four stages: detect, generate, validate, and deliver. At no point does it overwrite your existing code directly. The original files are preserved; all new crypto calls are routed through the generated shim.
+
+<Steps>
+  <Step title="Detect">
+    Semgrep scans the repository using a curated ruleset for cryptographic call sites. It identifies direct imports of `cryptography`, `pycryptodome`, `hashlib`, and `ssl` libraries, and maps each call site to an operation type (asymmetric encrypt, sign, hash, symmetric, KDF).
+  </Step>
+  <Step title="Generate">
+    The LLM receives the list of detected call sites, the repository structure, and the target migration path. It produces a `crypto_compat.py` module containing a hybrid shim for each detected operation type.
+
+    The shim is mode-switched by a single environment variable: `QUANTERIOS_CRYPTO_MODE`.
+  </Step>
+  <Step title="Validate">
+    Deterministic validators run before the PR is opened:
+
+    - **Import validator**: confirms that `crypto_compat.py` exports the expected symbols
+    - **Mode validator**: confirms that all three modes (`classical`, `hybrid`, `pqc`) are handled in each shim function
+    - **No-direct-import validator**: confirms that none of the patched call sites still reference the original library directly
+    - **Test generator**: produces a `test_crypto_compat.py` file with mode-switching smoke tests
+  </Step>
+  <Step title="Deliver">
+    A pull request is opened on the detected platform (GitHub, GitLab, or Bitbucket) containing `crypto_compat.py`, the patched call sites, `test_crypto_compat.py`, and a GitHub Actions CI matrix that runs all three modes.
+  </Step>
+</Steps>
+
+## The hybrid shim: `QUANTERIOS_CRYPTO_MODE`
+
+The generated shim supports three modes controlled by a single environment variable:
+
+| Mode | Behavior |
+|---|---|
+| `classical` | All operations use the original classical algorithm. Identical behavior to the pre-patch code. |
+| `hybrid` | Operations use both algorithms. Signatures are produced with both; verification accepts either. Encryption uses classical; a PQC KEM wraps the session key. |
+| `pqc` | All operations use only the post-quantum algorithm. Classical code paths are inactive. |
+
+<Tabs>
+  <Tab title="Before patch">
+    ```python
+    from cryptography.hazmat.primitives.asymmetric import rsa, padding
+    from cryptography.hazmat.primitives import hashes
+
+    private_key = rsa.generate_private_key(
+        public_exponent=65537,
+        key_size=2048,
+    )
+
+    signature = private_key.sign(
+        message,
+        padding.PSS(
+            mgf=padding.MGF1(hashes.SHA256()),
+            salt_length=padding.PSS.MAX_LENGTH
+        ),
+        hashes.SHA256()
+    )
+    ```
+  </Tab>
+  <Tab title="After patch">
+    ```python
+    # Original library imports removed from call site.
+    # All crypto operations routed through crypto_compat.py.
+    from crypto_compat import generate_signing_key, sign_message
+
+    private_key = generate_signing_key()
+
+    signature = sign_message(private_key, message)
+    ```
+
+    The generated `crypto_compat.py` shim:
+
+    ```python
+    import os
+    from typing import Union
+
+    CRYPTO_MODE = os.getenv("QUANTERIOS_CRYPTO_MODE", "classical")
+
+    def generate_signing_key():
+        if CRYPTO_MODE == "pqc":
+            from quanterios_pqc import ml_dsa
+            return ml_dsa.generate_key_pair()
+        elif CRYPTO_MODE == "hybrid":
+            from cryptography.hazmat.primitives.asymmetric import rsa
+            from quanterios_pqc import ml_dsa
+            return {
+                "classical": rsa.generate_private_key(public_exponent=65537, key_size=2048),
+                "pqc": ml_dsa.generate_key_pair(),
+            }
+        else:  # classical
+            from cryptography.hazmat.primitives.asymmetric import rsa
+            return rsa.generate_private_key(public_exponent=65537, key_size=2048)
+
+    def sign_message(key, message: bytes) -> Union[bytes, dict]:
+        if CRYPTO_MODE == "pqc":
+            return key.sign(message)
+        elif CRYPTO_MODE == "hybrid":
+            from cryptography.hazmat.primitives.asymmetric import padding
+            from cryptography.hazmat.primitives import hashes
+            classical_sig = key["classical"].sign(
+                message,
+                padding.PSS(mgf=padding.MGF1(hashes.SHA256()), salt_length=padding.PSS.MAX_LENGTH),
+                hashes.SHA256()
+            )
+            pqc_sig = key["pqc"].sign(message)
+            return {"classical": classical_sig, "pqc": pqc_sig}
+        else:  # classical
+            from cryptography.hazmat.primitives.asymmetric import padding
+            from cryptography.hazmat.primitives import hashes
+            return key.sign(
+                message,
+                padding.PSS(mgf=padding.MGF1(hashes.SHA256()), salt_length=padding.PSS.MAX_LENGTH),
+                hashes.SHA256()
+            )
+    ```
+  </Tab>
+</Tabs>
+
+## Supported operation types
+
+| Operation | Source | Target | Shim function |
+|---|---|---|---|
+| Asymmetric encrypt | RSA-2048 OAEP | ML-KEM-768 | `encrypt_asymmetric()` / `decrypt_asymmetric()` |
+| Asymmetric sign | ECDSA P-256 | ML-DSA-65 | `sign_message()` / `verify_signature()` |
+| Hash | SHA-1, MD5 | SHA-256 | `hash_data()` |
+| Symmetric encrypt | AES-128-ECB | AES-256-GCM | `encrypt_symmetric()` / `decrypt_symmetric()` |
+| KDF | PBKDF2 (iter < 100k) | PBKDF2 (600k iter, SHA-256) | `derive_key()` |
+
+## CI enforcement hook
+
+<Info>
+  The PR includes a GitHub Actions workflow that runs the test suite in a 3-mode matrix: `classical`, `hybrid`, and `pqc`. All three modes must pass before the PR can be merged. This ensures that the shim does not silently break classical behavior when the mode is changed.
+</Info>
+
+The generated workflow file is placed at `.github/workflows/quanterios-crypto-matrix.yml`. It runs on every push to the PR branch and on the merge target branch.

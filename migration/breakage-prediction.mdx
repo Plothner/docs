@@ -1,0 +1,90 @@
+---
+title: "Breakage Prediction"
+description: "An XGBoost model trained on 5,000+ real GitHub crypto PRs predicts breakage probability before any change reaches production."
+---
+
+<Info>
+  The model improves over time. Every completed migration in any Quanterios tenant contributes an outcome record (success or breakage) to the training pipeline. The model is retrained weekly. Confidence levels rise as more similar migrations accumulate.
+</Info>
+
+## How the model works
+
+Breakage prediction runs before the migration plan is confirmed. The model scores a specific migration as a probability from 0% to 100%. A score of 0% means the model has never seen this migration cause a breakage. A score of 100% means it has almost always caused one.
+
+### Training data
+
+| Source | Record count | What it contains |
+|---|---|---|
+| Real GitHub crypto PRs | 3,200+ | Algorithm changes, platform, library version, outcome (merged cleanly vs reverted) |
+| CT log correlation data | 1,100+ | Certificate replacements tracked via CT logs with observed downtime events |
+| Synthetic scenarios | 700+ | Adversarial edge cases generated to cover low-traffic migration paths |
+| **Total** | **5,000+** | |
+
+### Model inputs
+
+| Feature | Type | Example values |
+|---|---|---|
+| Source algorithm | Categorical | `RSA-2048`, `ECDSA-P256`, `SHA-1` |
+| Target algorithm | Categorical | `ML-KEM-768`, `ML-DSA-65`, `SHA-256` |
+| Platform | Categorical | `nginx`, `aws-acm`, `k8s-ingress` |
+| Library version | Numeric | OpenSSL version as integer, e.g., `30200` for 3.2.0 |
+| Dependency count | Numeric | Number of services depending on the certificate or key |
+| Migration path category | Categorical | `classical`, `quantum`, `hybrid` |
+| Tenant history: prior breakages | Numeric | Count of past breakages in this tenant |
+| Tenant history: prior successes | Numeric | Count of past successes in this tenant |
+| Training set sample count | Numeric | Number of similar migrations in training data |
+
+## Confidence levels
+
+The model assigns a confidence level based on how many similar migrations exist in the training data:
+
+| Confidence | Sample count | Interpretation |
+|---|---|---|
+| High | >= 1,000 similar migrations | The probability estimate is reliable. Use it to make the go/no-go decision. |
+| Medium | 100 to 999 | The estimate is directionally correct but may be off by 10 to 20 percentage points. |
+| Low | < 100 | Limited historical data. Treat the estimate as a weak signal only. Manual review is recommended. |
+
+<Tip>
+  **How to interpret the numbers.** A score of 5% is safe to proceed with standard monitoring. A score of 30% warrants caution: review the identified risk factors and consider extending the canary window. A score of 50% or higher should trigger a manual review by a cryptography engineer before the plan is confirmed.
+</Tip>
+
+## Example output
+
+The prediction is returned as part of the migration plan response and included in the PR description.
+
+```json
+{
+  "migration_plan_id": "mig_01j9x3kpqr4st5uv",
+  "breakage_prediction": {
+    "probability": 0.12,
+    "probability_pct": "12%",
+    "confidence": "high",
+    "sample_count": 1847,
+    "risk_factors": [
+      {
+        "factor": "dependency_count",
+        "value": 14,
+        "contribution": 0.07,
+        "note": "High dependency count increases blast radius if a breakage occurs"
+      },
+      {
+        "factor": "library_version",
+        "value": "OpenSSL 1.1.1",
+        "contribution": 0.04,
+        "note": "OpenSSL 1.1.1 has limited ML-KEM support; upgrade to 3.x recommended before migration"
+      }
+    ],
+    "recommendation": "PROCEED_WITH_CAUTION",
+    "model_version": "xgb-v4.2-2026-04-07"
+  }
+}
+```
+
+### Recommendation values
+
+| Value | Probability range | Suggested action |
+|---|---|---|
+| `PROCEED` | 0% to 14% | Standard canary window, no manual review required |
+| `PROCEED_WITH_CAUTION` | 15% to 29% | Review risk factors, consider extending monitoring window |
+| `MANUAL_REVIEW` | 30% to 49% | Engineer review required before confirming plan |
+| `HIGH_RISK` | 50%+ | Do not proceed without senior engineer sign-off and rollback rehearsal |
