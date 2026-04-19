@@ -1,0 +1,240 @@
+---
+title: "Hybrid Mode API"
+description: "Post handshake telemetry, monitor PQC adoption ratios, and determine rolloff readiness for assets running in dual-stack hybrid mode."
+---
+
+Hybrid mode lets you run classical and post-quantum algorithms side-by-side during migration. Clients that support PQC negotiate Kyber-768 (or your configured target), while legacy clients fall back to the classical handshake. The Hybrid Mode API collects per-window telemetry, tracks adoption trends, and signals when it is safe to cut over fully to PQC.
+
+<Info>
+  All Hybrid Mode endpoints require both `X-Tenant-Id` and `X-API-Key` headers. See [Authentication](/api-reference/authentication) for details.
+</Info>
+
+---
+
+## Post handshake telemetry
+
+`POST /api/v1/assets/{asset_id}/hybrid/telemetry`
+
+Submit a telemetry window containing PQC and classical handshake counts for an asset. Call this endpoint from your infrastructure at the end of each monitoring window.
+
+<Info>
+  The [Quanterios monitoring script](https://docs.quanterios.com/hybrid/monitoring-script) generates and submits these calls automatically when deployed alongside your TLS terminator or load balancer. Manual calls are only necessary for custom infrastructure integrations.
+</Info>
+
+### Path parameters
+
+<ParamField path="asset_id" type="string" required>
+  UUID of the asset in hybrid mode.
+</ParamField>
+
+### Request body
+
+<ParamField body="pqc_count" type="integer" required>
+  Number of TLS handshakes that completed using the PQC algorithm during this window.
+</ParamField>
+
+<ParamField body="classical_count" type="integer" required>
+  Number of TLS handshakes that fell back to the classical algorithm during this window.
+</ParamField>
+
+<ParamField body="total" type="integer" required>
+  Total number of TLS handshakes during this window. Must equal `pqc_count + classical_count`.
+</ParamField>
+
+<ParamField body="window_seconds" type="integer" required>
+  Duration of the monitoring window in seconds (for example, `3600` for one hour).
+</ParamField>
+
+### Response
+
+<ResponseField name="status" type="string">
+  Always `"ok"` on success.
+</ResponseField>
+
+<ResponseField name="pqc_ratio" type="number">
+  Computed PQC ratio for this window: `pqc_count / total`.
+</ResponseField>
+
+<CodeGroup>
+```bash curl
+curl --request POST \
+  --url "https://api.quanterios.com/api/v1/assets/ast_11111111-1111-1111-1111-111111111111/hybrid/telemetry" \
+  --header "X-Tenant-Id: ten_abc123" \
+  --header "X-API-Key: qk_live_xxxxxxxxxxxx" \
+  --header "Content-Type: application/json" \
+  --data '{
+    "pqc_count": 8420,
+    "classical_count": 1580,
+    "total": 10000,
+    "window_seconds": 3600
+  }'
+```
+```json Response
+{
+  "status": "ok",
+  "pqc_ratio": 0.842
+}
+```
+</CodeGroup>
+
+---
+
+## Get rolloff readiness
+
+`GET /api/v1/assets/{asset_id}/hybrid/status`
+
+Retrieve the current rolloff readiness assessment for a hybrid-mode asset, including the 7-day PQC ratio trend and all four rolloff criteria with their required and actual values.
+
+<Note>
+  Quanterios evaluates four criteria to determine rolloff readiness:
+
+  1. **PQC ratio above threshold.** The current window ratio must exceed 0.95 (95% of connections using PQC).
+  2. **Trend stability.** The 7-day trend must show no downward movement exceeding 0.02 in any 24-hour window.
+  3. **Minimum monitoring duration.** The asset must have been in hybrid mode for at least `monitoring_hours` as specified by its migration template.
+  4. **Total connection volume.** At least 10,000 connections must have been observed over the 7-day window to ensure statistical significance.
+
+  All four criteria must be `met: true` before `rolloff_ready` is set to `true`.
+</Note>
+
+### Path parameters
+
+<ParamField path="asset_id" type="string" required>
+  UUID of the asset in hybrid mode.
+</ParamField>
+
+### Response
+
+<ResponseField name="current_pqc_ratio" type="number">
+  PQC ratio computed from the most recent telemetry window.
+</ResponseField>
+
+<ResponseField name="trend_7d" type="array">
+  Array of 7 daily PQC ratio floats, ordered oldest to most recent.
+</ResponseField>
+
+<ResponseField name="total_connections_7d" type="integer">
+  Total handshake count across all telemetry windows in the last 7 days.
+</ResponseField>
+
+<ResponseField name="rolloff_ready" type="boolean">
+  Whether all four rolloff criteria are currently met.
+</ResponseField>
+
+<ResponseField name="rolloff_criteria" type="array">
+  Array of 4 criterion objects. Each contains `name`, `required` (threshold or duration), `actual` (current value), and `met` (boolean).
+</ResponseField>
+
+<ResponseField name="hybrid_since" type="string">
+  ISO 8601 timestamp of when hybrid mode was activated for this asset.
+</ResponseField>
+
+<ResponseField name="monitoring_script_deployed" type="boolean">
+  Whether the Quanterios monitoring script has submitted at least one telemetry window.
+</ResponseField>
+
+<CodeGroup>
+```bash curl
+curl --request GET \
+  --url "https://api.quanterios.com/api/v1/assets/ast_11111111-1111-1111-1111-111111111111/hybrid/status" \
+  --header "X-Tenant-Id: ten_abc123" \
+  --header "X-API-Key: qk_live_xxxxxxxxxxxx"
+```
+```json Response
+{
+  "current_pqc_ratio": 0.842,
+  "trend_7d": [0.61, 0.68, 0.73, 0.78, 0.81, 0.83, 0.842],
+  "total_connections_7d": 672000,
+  "rolloff_ready": false,
+  "rolloff_criteria": [
+    {
+      "name": "pqc_ratio_above_threshold",
+      "required": 0.95,
+      "actual": 0.842,
+      "met": false
+    },
+    {
+      "name": "trend_stability",
+      "required": "no drop > 0.02 in 24h",
+      "actual": "max_drop=0.01",
+      "met": true
+    },
+    {
+      "name": "minimum_monitoring_duration",
+      "required": "168h",
+      "actual": "192h",
+      "met": true
+    },
+    {
+      "name": "minimum_connection_volume",
+      "required": 10000,
+      "actual": 672000,
+      "met": true
+    }
+  ],
+  "hybrid_since": "2026-04-10T08:00:00Z",
+  "monitoring_script_deployed": true
+}
+```
+</CodeGroup>
+
+---
+
+## List all hybrid assets
+
+`GET /api/v1/hybrid/overview`
+
+Return a summary of every asset currently in hybrid mode for your tenant, including the latest PQC ratio and last telemetry timestamp for each.
+
+### Response
+
+<ResponseField name="total" type="integer">
+  Total number of assets currently in hybrid mode for this tenant.
+</ResponseField>
+
+<ResponseField name="assets" type="array">
+  Array of hybrid asset summary objects. Each element contains:
+
+  | Field | Type | Description |
+  |-------|------|-------------|
+  | `asset_id` | string | UUID of the asset. |
+  | `location` | string | Human-readable asset location. |
+  | `algorithm` | string | Current classical algorithm being replaced. |
+  | `template` | string | Migration template ID in use. |
+  | `state` | string | Current migration plan state. |
+  | `current_pqc_ratio` | number | PQC ratio from the most recent telemetry window. |
+  | `last_telemetry` | string | ISO 8601 timestamp of the most recent telemetry submission. |
+</ResponseField>
+
+<CodeGroup>
+```bash curl
+curl --request GET \
+  --url https://api.quanterios.com/api/v1/hybrid/overview \
+  --header "X-Tenant-Id: ten_abc123" \
+  --header "X-API-Key: qk_live_xxxxxxxxxxxx"
+```
+```json Response
+{
+  "total": 2,
+  "assets": [
+    {
+      "asset_id": "ast_11111111-1111-1111-1111-111111111111",
+      "location": "us-east-1/acm/arn:aws:acm:us-east-1:123456789012:certificate/abc",
+      "algorithm": "RSA-2048",
+      "template": "tpl_rsa2048_kyber768",
+      "state": "hybrid_active",
+      "current_pqc_ratio": 0.842,
+      "last_telemetry": "2026-04-18T09:00:00Z"
+    },
+    {
+      "asset_id": "ast_22222222-2222-2222-2222-222222222222",
+      "location": "us-west-2/acm/arn:aws:acm:us-west-2:123456789012:certificate/def",
+      "algorithm": "ECDSA-P256",
+      "template": "tpl_ecdsa_p256_dilithium3",
+      "state": "hybrid_active",
+      "current_pqc_ratio": 0.97,
+      "last_telemetry": "2026-04-18T09:00:00Z"
+    }
+  ]
+}
+```
+</CodeGroup>
