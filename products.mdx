@@ -9,13 +9,11 @@ Quanterios covers the full cryptographic governance lifecycle through three stag
 
 Understand everything that exists in your cryptographic environment before you can fix it.
 
-<Card
-  title="Cryptographic Risk Assessment"
-  icon="chart-bar"
-  href="/customer/risk-intelligence/overview"
->
-  Connect 38 agentless connectors across AWS (12 services), Azure (8 services), GCP, Kubernetes, container registries, code repositories, and public certificate transparency logs. Every discovered asset is catalogued in a Cryptographic Bill of Materials and scored using the HNDL model on a 0 to 100 scale across four dimensions: data sensitivity, quantum timeline, exposure surface, and regulatory pressure. Findings are mapped to 13 compliance frameworks including CNSA 2.0, NIST FIPS 203/204/205, PCI DSS 4.0, HIPAA, and NIS2. Board-ready PDF reports are generated on demand. Powered by Quanterios Crypto Risk Intelligence.
+<Card title="Cryptographic Risk Assessment" icon="chart-bar" href="/risk-intelligence/overview">
+  Discover, score, and map every cryptographic asset in your infrastructure.
 </Card>
+
+Connect 38 agentless connectors across AWS, Azure, GCP, Kubernetes, and on-premises infrastructure. Every discovered asset is catalogued in a Cryptographic Bill of Materials (CBOM) and scored on a 0 to 100 scale across four dimensions: data sensitivity, quantum timeline, exposure surface, and regulatory pressure. Findings are mapped to 13 compliance frameworks including CNSA 2.0, NIST FIPS 203/204/205, PCI DSS 4.0, HIPAA, and NIS2. Board-ready PDF reports are generated on demand.
 
 **What you can do in this stage:**
 
@@ -29,13 +27,11 @@ Understand everything that exists in your cryptographic environment before you c
 
 Convert findings into runnable fixes and deploy them safely.
 
-<Card
-  title="Migration Planning and Execution"
-  icon="arrow-right-arrow-left"
-  href="/customer/migration/overview"
->
-  Select from 29 pre-built migration paths covering classical hygiene fixes, quantum-safe algorithm upgrades, and hybrid dual-algorithm deployments. The platform generates Terraform, Ansible, and Helm playbooks tailored to your environment. A Python code patcher applies hybrid shims that let old and new algorithms run side by side during the transition period. Breakage prediction uses an XGBoost model trained on 5,000+ real-world migration events, delivering an AUC of 0.94. Remediated findings are delivered as pull requests directly to your repository, keeping engineers in the loop without requiring them to manage the migration manually. Powered by Quanterios Migration Intelligence.
+<Card title="Migration Planning and Execution" icon="arrow-right-arrow-left" href="/migration/overview">
+  Generate runnable migration code and predict breakage before deploying.
 </Card>
+
+Select from 29 pre-built migration paths covering classical hygiene fixes, quantum-safe algorithm upgrades, and hybrid dual-algorithm deployments. The platform generates Terraform, Ansible, and Helm playbooks tailored to your environment. A Python code patcher applies hybrid shims that let old and new algorithms run side by side during the transition period. Breakage prediction uses an XGBoost model trained on 5,000+ real-world migration events. Remediated findings are delivered as pull requests directly to your repository.
 
 **What you can do in this stage:**
 
@@ -50,13 +46,11 @@ Convert findings into runnable fixes and deploy them safely.
 
 Stop new cryptographic debt before it enters the codebase.
 
-<Card
-  title="Continuous Crypto Debt Prevention"
-  icon="shield-check"
-  href="/customer/firewall/overview"
->
-  The prevention stage runs at the CI layer on every pull request. A curated set of Semgrep rules catches known-weak primitives, deprecated functions, and insecure configurations with exact file and line references. An AI auditor analyzes the same diff for higher-order patterns that static rules cannot reliably detect: custom crypto implementations, IV reuse across call sites, and algorithmic downgrades. Findings are posted as a structured review comment directly on the pull request. Integrates with GitHub, GitLab, and Bitbucket. A free tier is available with no credit card required. Powered by the Quanterios Crypto Debt Firewall.
+<Card title="Continuous Crypto Debt Prevention" icon="shield-check" href="/firewall/overview">
+  Scan every pull request for cryptographic vulnerabilities automatically.
 </Card>
+
+The prevention stage runs at the CI layer on every pull request. Semgrep rules catch known-weak primitives, deprecated functions, and insecure configurations. An AI auditor detects higher-order patterns that static rules cannot catch: custom crypto implementations, IV reuse, and algorithmic downgrades. Findings are posted as a structured review comment directly on the pull request. Integrates with GitHub, GitLab, and Bitbucket. A free tier is available with no credit card required.
 
 **What you can do in this stage:**
 
